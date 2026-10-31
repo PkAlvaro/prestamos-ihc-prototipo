@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { CornerDownLeft, X } from 'lucide-react'
 import useEscape from '../hooks/useEscape'
 import ResumenDevolucion from './ResumenDevolucion'
+import { MarcaNuevo } from '../../../novedades'
 
 /** Devolución sin multa ni cobros: resumen del préstamo y "Confirmar devolución". */
 export default function ConfirmarDevolucionModal({ prestamo, onConfirm, onClose }) {
@@ -28,6 +29,7 @@ export default function ConfirmarDevolucionModal({ prestamo, onConfirm, onClose 
             <h2 id="confirmar-devolucion-titulo" className="font-bold text-base text-cai-black">
               Revisa antes de devolver
             </h2>
+            <MarcaNuevo novedad="resumen-devolucion" />
           </div>
           <button
             onClick={onClose}

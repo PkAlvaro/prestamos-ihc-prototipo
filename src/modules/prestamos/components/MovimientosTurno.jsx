@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { ChevronDown, CornerDownLeft, History, Undo2 } from 'lucide-react'
 import { formatFechaHora } from '../utils/fechas'
+import { MarcaNuevo, useNovedades } from '../../../novedades'
 
 const hora = iso => (iso ? iso.slice(11, 16) : '')
 const formatPesos = n => `$${(n ?? 0).toLocaleString('es-CL')}`
@@ -56,8 +57,12 @@ function Movimiento({ m, onRevertir }) {
 export default function MovimientosTurno({ movimientos = [], onRevertir }) {
   // Junto a la lista en pantallas anchas va abierto; en las demás va sobre la lista,
   // plegado, para no empujar los préstamos hacia abajo.
+  // Si se llegó desde "Probar" de la mejora 3, se abre para que se vea de inmediato.
+  const novedades = useNovedades()
   const [abierto, setAbierto] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1536px)').matches
+    () =>
+      novedades?.escenario?.id === 'resumen-devolucion' ||
+      (typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1536px)').matches)
   )
   const devoluciones = movimientos.filter(m => m.tipo === 'DEVOLUCION' && !m.revertido_por).length
 
@@ -76,6 +81,7 @@ export default function MovimientosTurno({ movimientos = [], onRevertir }) {
           <span className="text-sm font-bold text-cai-dark whitespace-nowrap">
             Movimientos del turno
           </span>
+          <MarcaNuevo novedad="resumen-devolucion" />
           <span
             className="min-w-5 h-5 px-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold flex items-center justify-center"
             title={`${devoluciones} devoluci${devoluciones === 1 ? 'ón' : 'ones'} hoy`}

@@ -4,6 +4,7 @@ import { LogOut, Sun, Moon, Menu, RotateCcw } from 'lucide-react'
 import { useAuth } from '../../auth'
 import { useTheme } from '../../../core/theme'
 import { reiniciarDatos } from '../../../mock/db'
+import { ControlesNovedades } from '../../../novedades'
 import { usePageLayout } from './PageLayout'
 
 export default function MainHeader() {
@@ -59,7 +60,11 @@ export default function MainHeader() {
           title="Ir al inicio"
         >
           <span className="flex items-center justify-center bg-cai-yellow rounded-[3px] w-[38px] h-[46px] p-[2px]">
-            <img src={`${import.meta.env.BASE_URL}cai-logo.svg`} alt="CAi" className="w-[33px] h-auto" />
+            <img
+              src={`${import.meta.env.BASE_URL}cai-logo.svg`}
+              alt="CAi"
+              className="w-[33px] h-auto"
+            />
           </span>
         </button>
       </div>
@@ -79,6 +84,11 @@ export default function MainHeader() {
           </div>
         </div>
 
+        {/* Prototipo: comparar Original / Mejoras y marcas "Nuevo" */}
+        <div className="hidden sm:block mr-1">
+          <ControlesNovedades />
+        </div>
+
         {/* Prototipo: rol simulado (en el sistema real viene de la sesión) */}
         <label className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-white/45">
           <span className="hidden md:inline">Rol demo</span>
@@ -88,15 +98,23 @@ export default function MainHeader() {
             className="bg-transparent text-white/80 border border-white/20 rounded px-1.5 py-1 text-[11px] cursor-pointer"
             title="Cambiar el rol simulado"
           >
-            <option value="ADMIN" className="text-black">Admin</option>
-            <option value="MIEMBRO" className="text-black">Miembro</option>
+            <option value="ADMIN" className="text-black">
+              Admin
+            </option>
+            <option value="MIEMBRO" className="text-black">
+              Miembro
+            </option>
           </select>
         </label>
 
         {/* Prototipo: vuelve a los datos ficticios iniciales */}
         <button
           onClick={() => {
-            if (window.confirm('¿Reiniciar los datos de prueba? Se perderán los cambios hechos en el prototipo.')) {
+            if (
+              window.confirm(
+                '¿Reiniciar los datos de prueba? Se perderán los cambios hechos en el prototipo.'
+              )
+            ) {
               reiniciarDatos()
             }
           }}

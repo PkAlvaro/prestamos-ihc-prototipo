@@ -1,6 +1,7 @@
 import React from 'react'
 import MensajeListaVacia from './MensajeListaVacia'
 import MovimientosTurno from './MovimientosTurno'
+import { SoloConMejora, useNovedad } from '../../../novedades'
 import { formatFechaHora, haceCuanto } from '../utils/fechas'
 import {
   Package,
@@ -242,6 +243,7 @@ export default function ActivosTab({ ctx, cn, SortIcon }) {
     movimientosTurno,
     handleRevertirMovimiento,
   } = ctx
+  const { activa: conMovimientos } = useNovedad('resumen-devolucion')
 
   const encabezado = (col, texto) => (
     <button
@@ -253,7 +255,13 @@ export default function ActivosTab({ ctx, cn, SortIcon }) {
   )
 
   return (
-    <div className="flex flex-col-reverse gap-5 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_20rem] 2xl:gap-6 2xl:items-start">
+    <div
+      className={
+        conMovimientos
+          ? 'flex flex-col-reverse gap-5 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_20rem] 2xl:gap-6 2xl:items-start'
+          : ''
+      }
+    >
       <div className="space-y-5 min-w-0">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold text-cai-dark">
@@ -335,7 +343,9 @@ export default function ActivosTab({ ctx, cn, SortIcon }) {
           )
         })()}
       </div>
-      <MovimientosTurno movimientos={movimientosTurno} onRevertir={handleRevertirMovimiento} />
+      <SoloConMejora novedad="resumen-devolucion">
+        <MovimientosTurno movimientos={movimientosTurno} onRevertir={handleRevertirMovimiento} />
+      </SoloConMejora>
     </div>
   )
 }

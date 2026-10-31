@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Clock, Mail, Minimize2, Package, Play, User, X } from 'lucide-react'
+import { MarcaNuevo } from '../../../novedades'
 
 export const MOTIVOS_ESPERA = [
   'Esperando código del correo',
@@ -49,6 +50,7 @@ export function PonerEnEsperaBoton({ onMinimizar, disabled }) {
 
   return (
     <div className="relative" ref={ref}>
+      <MarcaNuevo novedad="atenciones-espera" flotante />
       <button
         type="button"
         onClick={() => setAbierto(v => !v)}
@@ -99,6 +101,7 @@ export default function AtencionesEnEspera({ atenciones, onRetomar, onDescartar 
       <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
         <Clock className="w-3.5 h-3.5" />
         En espera ({atenciones.length})
+        <MarcaNuevo novedad="atenciones-espera" />
       </p>
       <div className="grid gap-2 sm:grid-cols-2">
         {atenciones.map(a => {

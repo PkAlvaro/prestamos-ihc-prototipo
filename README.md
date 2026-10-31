@@ -49,6 +49,29 @@ dejar activo el préstamo a nombre del mismo estudiante y registra quién lo rev
 
 Código: `components/ResumenDevolucion.jsx`, `ConfirmarDevolucionModal.jsx`, `MovimientosTurno.jsx`.
 
+## Para quien revisa
+
+La página de inicio lista las mejoras. **Probar** abre cada una con la pantalla ya preparada y una
+guía *Prueba esto* (con enlace a la siguiente). En el encabezado del panel:
+
+- **Original / Mejoras** alterna entre la interfaz como es hoy y la con mejoras, para comparar.
+- ✦ muestra u oculta las marcas **Nuevo N** sobre cada elemento agregado (N = número de la mejora).
+
+## Agregar una mejora
+
+La vitrina (`src/novedades/`) es genérica; cada mejora se declara una sola vez:
+
+1. Agrega una entrada a `src/modules/prestamos/novedades.js` con `id`, `numero`, `titulo`,
+   `problema`, `solucion`, `icono`, `ruta`, `pasos` y, opcionalmente, `preparar(ctx)` para dejar
+   la pantalla lista (recibe el estado del panel; devuelve `false` si aún faltan datos). Con eso ya
+   aparece su tarjeta en el inicio y su guía.
+2. En la UI, envuelve lo nuevo para que el modo Original lo oculte:
+   - `<SoloConMejora novedad="id" original={…lo de antes}>…</SoloConMejora>`, o
+   - `const { activa } = useNovedad('id')` dentro de un componente o hook, o
+   - `novedadActiva('id')` fuera de React (handlers, API simulada).
+3. Marca el elemento con `<MarcaNuevo novedad="id" />` (agrega `flotante` para pegarlo a la
+   esquina de un contenedor `relative`).
+
 ## Qué está simulado
 
 | En el sistema real | En el prototipo |

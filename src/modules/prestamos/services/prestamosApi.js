@@ -18,6 +18,7 @@ import {
 import { CARRERAS } from '../constants'
 import { terminosAlternativos } from '../utils/sinonimos'
 import { PREFIJOS_CODIGO } from '../../../mock/seed'
+import { novedadActiva } from '../../../novedades/estado'
 
 /**
  * Servicio de API del módulo de Préstamos — VERSIÓN PROTOTIPO.
@@ -419,7 +420,11 @@ export const prestamosApi = {
     leer(() => {
       const base = (
         soloDisponibles ? db.articulos.filter(a => a.stock_disponible > 0) : db.articulos
-      ).map(a => ({ ...a, _alternativos: terminosAlternativos(a) }))
+      ).map(a => ({
+        ...a,
+        // Mejora 2: sinónimos y otros nombres; la versión original solo busca en los textos
+        _alternativos: novedadActiva('busqueda-sinonimos') ? terminosAlternativos(a) : [],
+      }))
       const fuse = new Fuse(base, {
         keys: ['nombre', 'codigo', 'categoria', 'descripcion', '_alternativos'],
         threshold: 0.3,

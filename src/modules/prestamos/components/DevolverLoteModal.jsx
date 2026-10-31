@@ -4,6 +4,7 @@ import useEscape from '../hooks/useEscape'
 import { formatFechaHora } from '../utils/fechas'
 import { MULTA_MAXIMA, REGLA_MULTA } from '../constants'
 import { prestamosApi } from '../services/prestamosApi'
+import { useNovedad } from '../../../novedades'
 
 const formatPesos = n => `$${(n ?? 0).toLocaleString('es-CL')}`
 
@@ -59,6 +60,7 @@ function Opciones({ nombre, valor, onChange, totalLabel, totalDetalle }) {
  * montos parciales se siguen haciendo préstamo por préstamo.
  */
 export default function DevolverLoteModal({ modal, onConfirm, onClose }) {
+  const { activa: conResumen } = useNovedad('resumen-devolucion')
   const [tipoMulta, setTipoMulta] = useState('')
   const [comentarioMulta, setComentarioMulta] = useState('')
   const [tipoArriendo, setTipoArriendo] = useState('')
@@ -152,7 +154,7 @@ export default function DevolverLoteModal({ modal, onConfirm, onClose }) {
                       {p.articulo_nombre}
                     </p>
                     <p className="text-[11px] text-gray-400">
-                      {p.articulo_codigo && (
+                      {conResumen && p.articulo_codigo && (
                         <span className="font-mono text-gray-500">{p.articulo_codigo} · </span>
                       )}
                       Prestado {formatFechaHora(p.fecha_prestamo)}
@@ -253,7 +255,11 @@ export default function DevolverLoteModal({ modal, onConfirm, onClose }) {
             disabled={loading || !decisionLista}
             className="flex-1 py-2.5 rounded-xl bg-[#16A34A] hover:bg-green-700 text-white text-sm font-bold transition-colors duration-[120ms] cursor-pointer disabled:opacity-50"
           >
-            {loading ? 'Registrando…' : `Confirmar devolución (${prestamos.length})`}
+            {loading
+              ? 'Registrando…'
+              : conResumen
+                ? `Confirmar devolución (${prestamos.length})`
+                : `Devolver ${prestamos.length}`}
           </button>
         </div>
       </div>

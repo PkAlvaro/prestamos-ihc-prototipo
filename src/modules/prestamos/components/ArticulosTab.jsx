@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import MensajeListaVacia from './MensajeListaVacia'
 import OtrosNombresModal from './OtrosNombresModal'
+import { MarcaNuevo, useNovedad } from '../../../novedades'
 import useEscape from '../hooks/useEscape'
 import {
   Package,
@@ -50,6 +51,7 @@ export default function ArticulosTab({ ctx, cn }) {
     handleGuardarAlias,
   } = ctx
   const [otrosNombresDe, setOtrosNombresDe] = useState(null) // articulo | null
+  const { activa: conSinonimos } = useNovedad('busqueda-sinonimos')
 
   useEscape(cancelEliminarArticulo, !!deleteArticuloPending)
 
@@ -162,7 +164,11 @@ export default function ArticulosTab({ ctx, cn }) {
             )}
             <input
               type="text"
-              placeholder="Buscar por nombre, código, categoría o como le digan (ej: bata)..."
+              placeholder={
+                conSinonimos
+                  ? 'Buscar por nombre, código, categoría o como le digan (ej: bata)...'
+                  : 'Buscar por nombre, categoría o descripción...'
+              }
               value={stockSearchQuery}
               onChange={e => setStockSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 bg-white/70 border border-gray-100 rounded-xl text-sm font-medium text-cai-dark placeholder:text-gray-300 focus:outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 transition-all"
@@ -185,7 +191,7 @@ export default function ArticulosTab({ ctx, cn }) {
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredStock.map(articulo => (
+            {filteredStock.map((articulo, indice) => (
               <div key={articulo.id} className="glass-panel p-5 rounded-[24px] relative">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -244,7 +250,9 @@ export default function ArticulosTab({ ctx, cn }) {
                         </div>
                       )}
                       <p className="text-xs text-gray-400 font-semibold truncate">
-                        {articulo.codigo && <span className="font-mono">{articulo.codigo} · </span>}
+                        {conSinonimos && articulo.codigo && (
+                          <span className="font-mono">{articulo.codigo} · </span>
+                        )}
                         {articulo.categoria}
                       </p>
                       {articulo._coincidencia && (
@@ -265,22 +273,25 @@ export default function ArticulosTab({ ctx, cn }) {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                <button
-                  onClick={() => setOtrosNombresDe(articulo)}
-                  className="w-full mb-3 -mt-1 flex items-center gap-1.5 flex-wrap text-left text-[11px] text-gray-500 hover:text-emerald-700 cursor-pointer transition-colors duration-[120ms]"
-                  title="Editar otros nombres con que se busca este artículo"
-                >
-                  <Tags className="w-3.5 h-3.5 shrink-0" />
-                  {articulo.alias?.length ? (
-                    articulo.alias.map(a => (
-                      <span key={a} className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                        {a}
-                      </span>
-                    ))
-                  ) : (
-                    <span>Agregar otros nombres</span>
-                  )}
-                </button>
+                {conSinonimos && (
+                  <button
+                    onClick={() => setOtrosNombresDe(articulo)}
+                    className="w-full mb-3 -mt-1 flex items-center gap-1.5 flex-wrap text-left text-[11px] text-gray-500 hover:text-emerald-700 cursor-pointer transition-colors duration-[120ms]"
+                    title="Editar otros nombres con que se busca este artículo"
+                  >
+                    <Tags className="w-3.5 h-3.5 shrink-0" />
+                    {indice === 0 && <MarcaNuevo novedad="busqueda-sinonimos" />}
+                    {articulo.alias?.length ? (
+                      articulo.alias.map(a => (
+                        <span key={a} className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          {a}
+                        </span>
+                      ))
+                    ) : (
+                      <span>Agregar otros nombres</span>
+                    )}
+                  </button>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-gray-50/80 rounded-xl p-2.5 text-center border border-gray-100">
                     <div className="flex items-center justify-center gap-1">

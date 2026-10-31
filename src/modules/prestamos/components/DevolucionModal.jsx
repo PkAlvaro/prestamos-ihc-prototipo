@@ -3,6 +3,7 @@ import { AlertTriangle, X, DollarSign, Gift, Minus, Clock } from 'lucide-react'
 import useEscape from '../hooks/useEscape'
 import { REGLA_MULTA } from '../constants'
 import ResumenDevolucion from './ResumenDevolucion'
+import { SoloConMejora, useNovedad } from '../../../novedades'
 
 const formatPesos = n => `$${n.toLocaleString('es-CL')}`
 
@@ -14,6 +15,7 @@ const formatPesos = n => `$${n.toLocaleString('es-CL')}`
  * resolver tambien ese cobro.
  */
 export default function DevolucionModal({ prestamo, multa, onConfirm, onClose }) {
+  const { activa: conResumen } = useNovedad('resumen-devolucion')
   const arriendoPendiente = !!prestamo?.cobro_arriendo_pendiente
   const arriendoMonto = prestamo?.cobro_arriendo_monto ?? 0
 
@@ -146,9 +148,11 @@ export default function DevolucionModal({ prestamo, multa, onConfirm, onClose })
         </div>
 
         <div className="overflow-y-auto flex-1">
-          <div className="mx-6 mt-5">
-            <ResumenDevolucion prestamo={prestamo} />
-          </div>
+          <SoloConMejora novedad="resumen-devolucion">
+            <div className="mx-6 mt-5">
+              <ResumenDevolucion prestamo={prestamo} />
+            </div>
+          </SoloConMejora>
           {multa > 0 && (
             <>
               {/* Multa alert */}
@@ -157,6 +161,11 @@ export default function DevolucionModal({ prestamo, multa, onConfirm, onClose })
                   Multa por atraso
                 </p>
                 <p className="text-2xl font-black text-orange-600">{formatPesos(multa)}</p>
+                {!conResumen && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {prestamo.estudiante_nombre} · {prestamo.articulo_nombre}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 mt-2">{REGLA_MULTA}</p>
                 <p className="text-xs text-gray-500 mt-1">
                   Si el estudiante reclama la multa, elige “Condonar multa” e indica el motivo.

@@ -9,6 +9,7 @@ import { usePrestamosUI } from '../context/PrestamosUIContext'
 import { mensajeDeError } from '../utils/mensajeDeError'
 import useConfirmacion from './useConfirmacion'
 import { useAuth } from '../../auth'
+import { novedadActiva } from '../../../novedades'
 
 // --- HELPERS PUROS (sin estado) ---
 
@@ -688,8 +689,22 @@ export function usePrestamosActions() {
       const preview = await prestamosApi.previewMulta(prestamo.id)
       if (preview.multa > 0 || prestamo.cobro_arriendo_pendiente) {
         setDevolucionModal({ prestamo, multa: preview.multa })
-      } else {
+      } else if (novedadActiva('resumen-devolucion')) {
         setResumenDevolucion(prestamo)
+      } else {
+        // Versión original: confirmación genérica, sin ficha del préstamo
+        const acepta = await confirmar({
+          titulo: 'Registrar devolución',
+          mensaje: `${prestamo.articulo_nombre} de ${prestamo.estudiante_nombre}. No tiene multa ni cobros pendientes.`,
+          confirmar: 'Devolver',
+        })
+        if (!acepta) return
+        const result = await prestamosApi.devolverPrestamo(prestamo.id, {
+          monto_cobrado: 0,
+          tipo_pago: 'SIN_MULTA',
+        })
+        toast.success(result.mensaje)
+        await loadPrestamosData()
       }
     } catch (e) {
       toast.error('Error al devolver: ' + mensajeDeError(e))

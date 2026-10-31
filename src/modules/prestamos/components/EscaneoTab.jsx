@@ -15,6 +15,7 @@ import {
 import InsumoRow from './InsumoRow'
 import useSubmitGuard from '../hooks/useSubmitGuard'
 import AtencionesEnEspera, { PonerEnEsperaBoton } from './AtencionesEnEspera'
+import { MarcaNuevo, useNovedad } from '../../../novedades'
 
 const CameraScanner = lazy(() => import('./CameraScanner'))
 
@@ -67,6 +68,10 @@ export default function EscaneoTab({ ctx, cn }) {
   } = ctx
 
   const totalUnidades = articulosEscaneados.reduce((sum, a) => sum + a.cantidad, 0)
+  // Mejora 1: en la versión original solo existía la espera del código de verificación
+  const { activa: puedePonerEnEspera } = useNovedad('atenciones-espera')
+  const { activa: conSinonimos } = useNovedad('busqueda-sinonimos')
+  const listoParaPrestar = estudianteEscaneado && articulosEscaneados.length > 0
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex justify-center">
@@ -203,7 +208,7 @@ export default function EscaneoTab({ ctx, cn }) {
               </div>
               {showSuggestions && (
                 <div className="absolute top-[100%] left-0 right-0 mt-2 rounded-xl shadow-xl overflow-hidden z-50 bg-white border border-cai-border">
-                  {filteredSuggestions.map(art => (
+                  {filteredSuggestions.map((art, indice) => (
                     <button
                       key={art.id}
                       onClick={() => handleSuggestionClick(art)}
@@ -219,7 +224,9 @@ export default function EscaneoTab({ ctx, cn }) {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold truncate text-cai-black">{art.nombre}</p>
                         <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">
-                          {art.codigo && <span className="text-gray-400">{art.codigo} · </span>}
+                          {conSinonimos && art.codigo && (
+                            <span className="text-gray-400">{art.codigo} · </span>
+                          )}
                           {art.stock_disponible} disponible{art.stock_disponible !== 1 ? 's' : ''}
                         </p>
                       </div>
@@ -236,6 +243,9 @@ export default function EscaneoTab({ ctx, cn }) {
                           {art._coincidencia.tipo === 'alias'
                             ? 'otro nombre'
                             : art._coincidencia.es}
+                          {indice === 0 && (
+                            <MarcaNuevo novedad="busqueda-sinonimos" className="ml-1" />
+                          )}
                         </span>
                       )}
                     </button>
@@ -404,9 +414,10 @@ export default function EscaneoTab({ ctx, cn }) {
               )}
             </div>
           </div>
-          {(estudianteEscaneado || articulosEscaneados.length > 0) && (
+          {(listoParaPrestar ||
+            (puedePonerEnEspera && (estudianteEscaneado || articulosEscaneados.length > 0))) && (
             <div className="flex gap-2 mb-4 sticky top-2 z-10">
-              {estudianteEscaneado && articulosEscaneados.length > 0 && (
+              {listoParaPrestar && (
                 <button
                   onClick={guard(handleRealizarPrestamoAndNavigate)}
                   disabled={busy}
@@ -415,15 +426,11 @@ export default function EscaneoTab({ ctx, cn }) {
                   {`Realizar Préstamo (${totalUnidades})`}
                 </button>
               )}
-              <div
-                className={
-                  estudianteEscaneado && articulosEscaneados.length > 0
-                    ? 'w-44 sm:w-52 shrink-0'
-                    : 'flex-1'
-                }
-              >
-                <PonerEnEsperaBoton onMinimizar={handleMinimizarAtencion} disabled={busy} />
-              </div>
+              {puedePonerEnEspera && (
+                <div className={listoParaPrestar ? 'w-44 sm:w-52 shrink-0' : 'flex-1'}>
+                  <PonerEnEsperaBoton onMinimizar={handleMinimizarAtencion} disabled={busy} />
+                </div>
+              )}
             </div>
           )}
           {estudianteEscaneado && estudianteFines.length > 0 && (

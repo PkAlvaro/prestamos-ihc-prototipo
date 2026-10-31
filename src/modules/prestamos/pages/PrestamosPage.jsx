@@ -27,6 +27,7 @@ import {
   usePageLayout,
 } from '../../shared'
 import { usePrestamosPageState } from '../hooks/usePrestamosPageState'
+import { GuiaNovedad, useNovedad } from '../../../novedades'
 import EscaneoTab from '../components/EscaneoTab'
 import ActivosTab from '../components/ActivosTab'
 import VencidosTab from '../components/VencidosTab'
@@ -96,6 +97,7 @@ export default function PrestamosPage({ onBack }) {
   const { prestamosTab, handleBack, navigateToPrestamosTab, currentUser } = ctx
   const { setModuleColor } = useModuleColor()
   const [ayudaAbierta, setAyudaAbierta] = useState(false)
+  const { activa: atencionesActiva } = useNovedad('atenciones-espera')
 
   useEffect(() => {
     setModuleColor(MOD_COLOR)
@@ -159,7 +161,7 @@ export default function PrestamosPage({ onBack }) {
                 <SidebarItem
                   icon={Zap}
                   label="Nuevo préstamo"
-                  badge={ctx.atencionesEnEspera.length}
+                  badge={atencionesActiva ? ctx.atencionesEnEspera.length : 0}
                   badgeTitle={`${ctx.atencionesEnEspera.length} en espera`}
                   active={prestamosTab === 'escaneo'}
                   onClick={() => navigate('escaneo')}
@@ -255,7 +257,10 @@ export default function PrestamosPage({ onBack }) {
             </>
           )}
         >
-          <div className="pb-20 lg:pb-0">{renderTab()}</div>
+          <div className="pb-20 lg:pb-0">
+            <GuiaNovedad contexto={ctx} />
+            {renderTab()}
+          </div>
         </PageLayout>
 
         <PrestamosModals ctx={ctx} />

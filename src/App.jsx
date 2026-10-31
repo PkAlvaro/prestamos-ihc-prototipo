@@ -5,6 +5,8 @@ import { ThemeProvider } from './core/theme'
 import { ROUTE_PATHS, buildPrestamosPath } from './core/routing'
 import { DemoAuthProvider } from './modules/auth'
 import { PrestamosProvider, PrestamosPage, PrestamosAutorregistroPage } from './modules/prestamos'
+import { NOVEDADES_PRESTAMOS } from './modules/prestamos/novedades'
+import { NovedadesProvider, SeccionNovedades } from './novedades'
 
 function AvisoPrototipo() {
   return (
@@ -40,9 +42,13 @@ function Inicio() {
         </p>
         <h1 className="text-3xl font-black text-cai-black mb-3">Módulo de Préstamos</h1>
         <p className="text-sm text-cai-gray mb-8 max-w-xl">
-          Copia de la interfaz del sistema de préstamos funcionando sin servidor. Todos los datos son
-          ficticios, se guardan solo en este navegador y no se envía ningún correo.
+          Copia de la interfaz del sistema de préstamos funcionando sin servidor. Todos los datos
+          son ficticios, se guardan solo en este navegador y no se envía ningún correo.
         </p>
+        <SeccionNovedades />
+        <h2 className="mt-10 mb-3 text-xs font-bold uppercase tracking-widest text-cai-black">
+          Explorar libremente
+        </h2>
         <div className="grid sm:grid-cols-2 gap-4">
           {opciones.map(({ to, icono: Icono, titulo, texto }) => (
             <Link
@@ -58,11 +64,15 @@ function Inicio() {
         </div>
         <ul className="mt-8 text-xs text-cai-gray space-y-1">
           <li>
-            · RUT de prueba para escanear: elige uno en la pestaña <em>Estudiantes</em>, o ingresa uno
-            nuevo para ver el registro con consentimiento.
+            · RUT de prueba para escanear: elige uno en la pestaña <em>Estudiantes</em>, o ingresa
+            uno nuevo para ver el registro con consentimiento.
           </li>
-          <li>· Código de verificación por correo: siempre <strong>123456</strong>.</li>
-          <li>· Arriba a la derecha puedes cambiar el rol (Admin / Miembro) y reiniciar los datos.</li>
+          <li>
+            · Código de verificación por correo: siempre <strong>123456</strong>.
+          </li>
+          <li>
+            · Arriba a la derecha puedes cambiar el rol (Admin / Miembro) y reiniciar los datos.
+          </li>
         </ul>
       </div>
     </div>
@@ -82,14 +92,16 @@ export default function App() {
   return (
     <ThemeProvider>
       <DemoAuthProvider>
-        <Routes>
-          <Route path="/" element={<Inicio />} />
-          <Route path="/prestamos/autorregistro" element={<PrestamosAutorregistroPage />} />
-          <Route path="/prestamos" element={<Navigate to={buildPrestamosPath()} replace />} />
-          <Route path="/prestamos/:tab" element={<PrestamosRoute />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <AvisoPrototipo />
+        <NovedadesProvider catalogo={NOVEDADES_PRESTAMOS}>
+          <Routes>
+            <Route path="/" element={<Inicio />} />
+            <Route path="/prestamos/autorregistro" element={<PrestamosAutorregistroPage />} />
+            <Route path="/prestamos" element={<Navigate to={buildPrestamosPath()} replace />} />
+            <Route path="/prestamos/:tab" element={<PrestamosRoute />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <AvisoPrototipo />
+        </NovedadesProvider>
       </DemoAuthProvider>
     </ThemeProvider>
   )

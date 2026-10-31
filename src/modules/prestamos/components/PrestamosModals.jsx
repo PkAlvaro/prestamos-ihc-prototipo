@@ -17,6 +17,7 @@ import DevolverLoteModal from './DevolverLoteModal'
 import ConfirmDialog from './ConfirmDialog'
 import ConfirmarDevolucionModal from './ConfirmarDevolucionModal'
 import { PonerEnEsperaBoton } from './AtencionesEnEspera'
+import { SoloConMejora } from '../../../novedades'
 
 const normalizeStr = s => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
@@ -712,9 +713,14 @@ export default function PrestamosModals({ ctx }) {
                   >
                     Aceptar Términos y Enviar Código
                   </button>
-                  <div className="w-44 shrink-0">
-                    <PonerEnEsperaBoton onMinimizar={ctx.handleMinimizarAtencion} disabled={busy} />
-                  </div>
+                  <SoloConMejora novedad="atenciones-espera">
+                    <div className="w-44 shrink-0">
+                      <PonerEnEsperaBoton
+                        onMinimizar={ctx.handleMinimizarAtencion}
+                        disabled={busy}
+                      />
+                    </div>
+                  </SoloConMejora>
                 </div>
               </>
             )}

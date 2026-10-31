@@ -12,6 +12,7 @@ import { usePrestamosUI } from '../context/PrestamosUIContext'
 import { usePrestamosActions } from './usePrestamosActions'
 import { mensajeDeError } from '../utils/mensajeDeError'
 import { terminosAlternativos, explicarCoincidencia } from '../utils/sinonimos'
+import { useNovedad } from '../../../novedades'
 
 const normalizeSearch = str => (str ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
@@ -21,6 +22,10 @@ export function usePrestamosPageState(onBack) {
   const { tab } = useParams()
 
   const { currentUser } = useAuth()
+  // Mejora 2: sin ella, la búsqueda solo mira nombre y categoría (como el sistema original)
+  const { activa: sinonimosActiva } = useNovedad('busqueda-sinonimos')
+  const explicar = (consulta, articulo) =>
+    sinonimosActiva ? explicarCoincidencia(consulta, articulo) : null
 
   const {
     prestamosTab,
@@ -425,7 +430,7 @@ export function usePrestamosPageState(onBack) {
       }
     }, 350)
     return () => clearTimeout(timer)
-  }, [stockSearchQuery])
+  }, [stockSearchQuery, sinonimosActiva])
   const rutInputRef = React.useRef(null)
   const nombreInputRef = React.useRef(null)
 
@@ -440,11 +445,11 @@ export function usePrestamosPageState(onBack) {
         ...a,
         _nombreNorm: normalizeSearch(a.nombre),
         _categoriaNorm: normalizeSearch(a.categoria),
-        _codigoNorm: normalizeSearch(a.codigo),
+        _codigoNorm: sinonimosActiva ? normalizeSearch(a.codigo) : '',
         // Sinónimos y "otros nombres": "bata" encuentra los delantales
-        _alternativos: terminosAlternativos(a),
+        _alternativos: sinonimosActiva ? terminosAlternativos(a) : [],
       })),
-    [prestamosArticulos]
+    [prestamosArticulos, sinonimosActiva]
   )
 
   const fuseArticulos = React.useMemo(
@@ -471,10 +476,10 @@ export function usePrestamosPageState(onBack) {
     const qNorm = normalizeSearch(smartInput)
     return fuseArticulos
       .search(qNorm)
-      .map(r => ({ ...r.item, _coincidencia: explicarCoincidencia(smartInput, r.item) }))
+      .map(r => ({ ...r.item, _coincidencia: explicar(smartInput, r.item) }))
       .filter(a => a.stock_disponible > 0)
       .slice(0, 5)
-  }, [smartInput, fuseArticulos])
+  }, [smartInput, fuseArticulos]) // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     if (filteredSuggestions.length > 0) {
@@ -678,12 +683,12 @@ export function usePrestamosPageState(onBack) {
     // Semántico con resultados → úsalo; vacío o null → Fuse.js como fallback
     const conExplicacion = a => ({
       ...a,
-      _coincidencia: explicarCoincidencia(stockSearchQuery, a),
+      _coincidencia: explicar(stockSearchQuery, a),
     })
     if (stockSemanticResults !== null && stockSemanticResults.length > 0)
       return stockSemanticResults.map(conExplicacion)
     return fuseStock.search(normalizeSearch(stockSearchQuery)).map(r => conExplicacion(r.item))
-  }, [stockSearchQuery, fuseStock, articulosParaBuscar, stockSemanticResults])
+  }, [stockSearchQuery, fuseStock, articulosParaBuscar, stockSemanticResults]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     prestamosTab,
@@ -713,6 +718,7 @@ export function usePrestamosPageState(onBack) {
     loadPrestamosData,
     handleAbrirIngresoManual,
     handleScan,
+    handleAgregarArticulo,
     removeArticuloEscaneado,
     handleDevolver,
     handleRevertirDevolucion,
