@@ -11,6 +11,8 @@ export default function MarcaNuevo({ novedad, flotante = false, className = '' }
   const ctx = useNovedades()
   if (!ctx || ctx.modo !== 'mejoras' || !ctx.marcas) return null
   const entrada = ctx.catalogo.find(n => n.id === novedad)
+  // Lo que no está en el informe funciona igual, pero sin marca
+  if (entrada && !entrada.numero) return null
   return (
     <span
       title={entrada ? `${etiquetaNovedad(entrada)}: ${entrada.titulo}` : 'Nuevo'}

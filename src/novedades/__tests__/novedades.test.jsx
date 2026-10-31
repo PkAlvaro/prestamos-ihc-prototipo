@@ -2,7 +2,13 @@ import React from 'react'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { NovedadesProvider, MarcaNuevo, SoloConMejora, ControlesNovedades } from '..'
+import {
+  NovedadesProvider,
+  MarcaNuevo,
+  SoloConMejora,
+  ControlesNovedades,
+  visiblesEnVitrina,
+} from '..'
 import { actualizarEstado, novedadActiva, simularRed } from '../estado'
 import MensajeListaVacia from '../../modules/prestamos/components/MensajeListaVacia'
 import { NOVEDADES_PRESTAMOS } from '../../modules/prestamos/novedades'
@@ -62,7 +68,7 @@ describe('vitrina de novedades', () => {
     expect(await prestamosApi.buscarArticulosSemantico('guardapolvo', false)).toHaveLength(0)
   })
 
-  it('la numeración calza con las decisiones del informe (1 a 6) y lo demás es Extra', () => {
+  it('la numeración calza con el informe (1 a 6) y lo que no está en él no se muestra', () => {
     const numeros = NOVEDADES_PRESTAMOS.filter(n => n.numero).map(n => n.numero)
     expect(numeros).toEqual([1, 2, 3, 4, 5, 6])
     expect(NOVEDADES_PRESTAMOS.find(n => n.numero === 5).titulo).toBe(
@@ -70,6 +76,7 @@ describe('vitrina de novedades', () => {
     )
     const extras = NOVEDADES_PRESTAMOS.filter(n => !n.numero)
     expect(extras.map(n => n.id)).toEqual(['resumen-devolucion'])
+    expect(visiblesEnVitrina(NOVEDADES_PRESTAMOS).map(n => n.numero)).toEqual([1, 2, 3, 4, 5, 6])
   })
 
   it('Decisión 5: distingue cargando de vacío; en modo original se ve vacío mientras carga', () => {
@@ -96,5 +103,10 @@ describe('vitrina de novedades', () => {
     await expect(prestamosApi.listarPrestamosActivos()).rejects.toThrow('Network Error')
     simularRed(null)
     expect((await prestamosApi.listarPrestamosActivos()).length).toBeGreaterThan(0)
+  })
+
+  it('lo que no está en el informe no lleva marca "Nuevo"', () => {
+    conVitrina(<MarcaNuevo novedad="resumen-devolucion" />)
+    expect(screen.queryByText(/Nuevo/)).toBeNull()
   })
 })

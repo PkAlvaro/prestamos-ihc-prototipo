@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Lightbulb, X } from 'lucide-react'
-import { useNovedades, etiquetaNovedad } from './NovedadesContext'
+import { useNovedades, etiquetaNovedad, visiblesEnVitrina } from './NovedadesContext'
 
 /**
  * Guía "Prueba esto" de la novedad que el revisor eligió en el inicio. Además,
@@ -10,7 +10,14 @@ import { useNovedades, etiquetaNovedad } from './NovedadesContext'
  * reintenta cuando el contexto cambia.
  */
 export default function GuiaNovedad({ contexto }) {
-  const { catalogo, escenario, marcarPreparado, cerrarEscenario, iniciarEscenario } = useNovedades()
+  const {
+    catalogo: completo,
+    escenario,
+    marcarPreparado,
+    cerrarEscenario,
+    iniciarEscenario,
+  } = useNovedades()
+  const catalogo = visiblesEnVitrina(completo)
   const navigate = useNavigate()
   const indice = catalogo.findIndex(n => n.id === escenario?.id)
   const novedad = catalogo[indice]

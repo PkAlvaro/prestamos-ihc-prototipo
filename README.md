@@ -78,7 +78,9 @@ lo escrito coincide con ambos, se ven las dos secciones. ↑/↓ y Enter para el
 
 Código: `components/SugerenciasBusqueda.jsx`, `personasSugeridas` en `hooks/usePrestamosPageState.js`.
 
-### Extra (no está en el informe). Resumen antes de devolver y movimientos del turno
+### Además (no está en el informe ni en el inicio). Resumen antes de devolver y movimientos del turno
+Funciona en el modo Mejoras, pero no tiene tarjeta, guía ni marcas porque no es parte del informe.
+
 Antes de registrar una devolución se muestra el estudiante (con RUT), el objeto con su **código** y
 la fecha del préstamo, con el botón **Confirmar devolución**. Cada devolución queda en
 **Movimientos del turno** (junto a *Activos* y *Vencidos*) con un botón **Revertir**, que vuelve a

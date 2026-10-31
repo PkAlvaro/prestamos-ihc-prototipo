@@ -3,7 +3,13 @@
  * Original/Mejoras, marcas "Nuevo" y guías "Prueba esto".
  * Cómo agregar una mejora: ver README, sección "Agregar una mejora".
  */
-export { NovedadesProvider, useNovedades, useNovedad, etiquetaNovedad } from './NovedadesContext'
+export {
+  NovedadesProvider,
+  useNovedades,
+  useNovedad,
+  etiquetaNovedad,
+  visiblesEnVitrina,
+} from './NovedadesContext'
 export { novedadActiva, simularRed } from './estado'
 export { default as MarcaNuevo } from './MarcaNuevo'
 export { default as SoloConMejora } from './SoloConMejora'

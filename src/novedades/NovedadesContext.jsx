@@ -41,8 +41,11 @@ export function NovedadesProvider({ catalogo, children }) {
   return <NovedadesContext.Provider value={value}>{children}</NovedadesContext.Provider>
 }
 
-/** "Decisión 3" para las del informe; "Extra" para lo que el prototipo suma aparte. */
-export const etiquetaNovedad = n => (n.numero ? `Decisión ${n.numero}` : 'Extra')
+/** "Decisión 3": el número de la decisión en el informe. */
+export const etiquetaNovedad = n => `Decisión ${n.numero}`
+
+/** Solo lo que está en el informe se muestra en la vitrina (tarjetas, guías, marcas). */
+export const visiblesEnVitrina = catalogo => catalogo.filter(n => n.numero)
 
 export function useNovedades() {
   return useContext(NovedadesContext)

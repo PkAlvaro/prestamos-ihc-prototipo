@@ -1,12 +1,13 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Sparkles } from 'lucide-react'
-import { useNovedades, etiquetaNovedad } from './NovedadesContext'
+import { useNovedades, etiquetaNovedad, visiblesEnVitrina } from './NovedadesContext'
 import ControlesNovedades from './ControlesNovedades'
 
 /** Tarjetas del inicio: una por mejora, con el problema, la propuesta y "Probar". */
 export default function SeccionNovedades() {
-  const { catalogo, iniciarEscenario } = useNovedades()
+  const { catalogo: completo, iniciarEscenario } = useNovedades()
+  const catalogo = visiblesEnVitrina(completo)
   const navigate = useNavigate()
 
   return (
@@ -16,8 +17,7 @@ export default function SeccionNovedades() {
           id="novedades-titulo"
           className="text-xs font-bold uppercase tracking-widest text-cai-black flex items-center gap-1.5"
         >
-          <Sparkles className="w-4 h-4 text-amber-500" /> Decisiones de diseño (
-          {catalogo.filter(n => n.numero).length})
+          <Sparkles className="w-4 h-4 text-amber-500" /> Decisiones de diseño ({catalogo.length})
         </h2>
         <ControlesNovedades oscuro={false} />
       </div>
