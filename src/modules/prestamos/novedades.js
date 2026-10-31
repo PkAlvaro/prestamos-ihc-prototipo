@@ -6,8 +6,8 @@ import { simularRed } from '../../novedades'
 /**
  * Catálogo de las decisiones de diseño del informe (curso IHC) implementadas en el
  * prototipo. `numero` es el de la decisión en el informe: tarjeta, guía y marcas
- * "Nuevo N" lo usan, así que deben coincidir. Lo que el prototipo suma sin estar en
- * el informe va con `numero: null` y se muestra como "Extra".
+ * "Nuevo N" lo usan, así que deben coincidir. Lo que el prototipo tenga sin estar
+ * en el informe va con `numero: null` y no se muestra en la vitrina.
  *
  * Cada entrada alimenta la vitrina de `src/novedades/`: su tarjeta en el inicio,
  * la guía "Prueba esto", las marcas "Nuevo" (por `id`) y el interruptor
@@ -96,8 +96,24 @@ export const NOVEDADES_PRESTAMOS = [
     },
   },
   {
-    id: 'diferencia-disponibilidad',
+    id: 'resumen-devolucion',
     numero: 3,
+    icono: CornerDownLeft,
+    titulo: 'Confirmar y poder revertir una devolución',
+    problema:
+      'Una devolución se registraba con un clic sobre un texto genérico. Si se elegía la fila equivocada, no era evidente cómo deshacerlo.',
+    solucion:
+      'Una ficha de confirmación con estudiante, objeto, código y fecha, y una lista del turno con "Revertir" que registra quién lo hizo.',
+    ruta: buildPrestamosPath('activos'),
+    pasos: [
+      'Pulsa "Devolver" en un préstamo sin multa, revisa la ficha y pulsa "Confirmar devolución".',
+      'La devolución aparece en "Movimientos del turno".',
+      'Pulsa "Revertir". El préstamo vuelve a Activos con el mismo estudiante y queda registrado quién lo revirtió.',
+    ],
+  },
+  {
+    id: 'diferencia-disponibilidad',
+    numero: 4,
     icono: Eye,
     titulo: 'Reportar diferencias de disponibilidad',
     problema:
@@ -119,7 +135,7 @@ export const NOVEDADES_PRESTAMOS = [
   },
   {
     id: 'validacion-inventario',
-    numero: 4,
+    numero: 5,
     icono: ListChecks,
     titulo: 'Validar los datos al registrar materiales',
     problema:
@@ -134,8 +150,28 @@ export const NOVEDADES_PRESTAMOS = [
     ],
   },
   {
+    id: 'busqueda-personas',
+    numero: 6,
+    icono: Users,
+    titulo: 'Buscar personas y materiales desde una misma barra',
+    problema:
+      'La barra principal solo encontraba materiales. Para dar con una persona había que saber su RUT completo o ir a la pestaña Estudiantes.',
+    solucion:
+      'La barra busca personas por nombre o RUT además de materiales, y muestra los resultados en dos grupos, "Personas" y "Materiales", para elegir el registro correcto.',
+    ruta: buildPrestamosPath('escaneo', { mode: 'prestamo' }),
+    pasos: [
+      `Ya está escrito "${BUSQUEDA_MIXTA}". Coincide con personas y con materiales, y se ven los dos grupos.`,
+      'Muévete con las flechas y elige con Enter o con el mouse. Una persona queda como estudiante de la atención y un material abre la cantidad.',
+      `Prueba con parte de un RUT, con o sin puntos (por ejemplo ${estudianteB ? estudianteB.rut.slice(0, 2) + '.' + estudianteB.rut.slice(2, 5) : '19.133'}), o con un apellido.`,
+    ],
+    preparar: ctx => {
+      ctx.setSmartInput(BUSQUEDA_MIXTA)
+      ctx.smartInputRef.current?.focus()
+    },
+  },
+  {
     id: 'estado-carga',
-    numero: 5,
+    numero: 7,
     icono: Loader,
     titulo: 'Diferenciar una lista vacía de una que todavía está cargando',
     problema:
@@ -164,42 +200,6 @@ export const NOVEDADES_PRESTAMOS = [
         ejecutar: ctx => recargarActivos(ctx, { lenta: true, falla: true }),
       },
       { texto: 'Volver a los datos normales', ejecutar: ctx => recargarActivos(ctx, {}) },
-    ],
-  },
-  {
-    id: 'busqueda-personas',
-    numero: 6,
-    icono: Users,
-    titulo: 'Buscar personas y materiales desde una misma barra',
-    problema:
-      'La barra principal solo encontraba materiales. Para dar con una persona había que saber su RUT completo o ir a la pestaña Estudiantes.',
-    solucion:
-      'La barra busca personas por nombre o RUT además de materiales, y muestra los resultados en dos grupos, "Personas" y "Materiales", para elegir el registro correcto.',
-    ruta: buildPrestamosPath('escaneo', { mode: 'prestamo' }),
-    pasos: [
-      `Ya está escrito "${BUSQUEDA_MIXTA}". Coincide con personas y con materiales, y se ven los dos grupos.`,
-      'Muévete con las flechas y elige con Enter o con el mouse. Una persona queda como estudiante de la atención y un material abre la cantidad.',
-      `Prueba con parte de un RUT, con o sin puntos (por ejemplo ${estudianteB ? estudianteB.rut.slice(0, 2) + '.' + estudianteB.rut.slice(2, 5) : '19.133'}), o con un apellido.`,
-    ],
-    preparar: ctx => {
-      ctx.setSmartInput(BUSQUEDA_MIXTA)
-      ctx.smartInputRef.current?.focus()
-    },
-  },
-  {
-    id: 'resumen-devolucion',
-    numero: null,
-    icono: CornerDownLeft,
-    titulo: 'Resumen antes de devolver y movimientos del turno',
-    problema:
-      'Una devolución se registraba con un clic sobre un texto genérico. Si se elegía la fila equivocada, no era evidente cómo deshacerlo.',
-    solucion:
-      'Una ficha de confirmación con estudiante, objeto, código y fecha, y una lista del turno con "Revertir" que registra quién lo hizo.',
-    ruta: buildPrestamosPath('activos'),
-    pasos: [
-      'Pulsa "Devolver" en un préstamo sin multa, revisa la ficha y pulsa "Confirmar devolución".',
-      'La devolución aparece en "Movimientos del turno".',
-      'Pulsa "Revertir". El préstamo vuelve a Activos con el mismo estudiante y queda registrado quién lo revirtió.',
     ],
   },
 ]

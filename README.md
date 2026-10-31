@@ -43,7 +43,15 @@ explica por qué aparece («bata» = delantal). Hay dos fuentes:
 
 También se puede buscar por el código del artículo (`CALC-01`).
 
-### Decisión 3. Reportar diferencias de disponibilidad
+### Decisión 3. Confirmar y poder revertir una devolución
+Antes de registrar una devolución se muestra el estudiante (con RUT), el objeto con su **código** y
+la fecha del préstamo, con el botón **Confirmar devolución**. Cada devolución queda en
+**Movimientos del turno** (junto a *Activos* y *Vencidos*) con un botón **Revertir**, que vuelve a
+dejar activo el préstamo a nombre del mismo estudiante y registra quién lo revirtió y a qué hora.
+
+Código: `components/ResumenDevolucion.jsx`, `ConfirmarDevolucionModal.jsx`, `MovimientosTurno.jsx`.
+
+### Decisión 4. Reportar diferencias de disponibilidad
 Al elegir un material por nombre (en la barra del mesón o en su ficha de Stock) aparece **Reportar
 diferencia de disponibilidad**: el encargado indica cuántas unidades libres ve en el estante y, si
 quiere, un comentario. La ficha queda con el aviso **Disponibilidad por revisar**. El reporte no
@@ -52,7 +60,7 @@ cambia las existencias: desde Stock, **Revisar** permite cerrarlo o corregir con
 Código: `components/DisponibilidadPorRevisar.jsx`, API `reportarDiferenciaDisponibilidad` y
 `revisarReporteDisponibilidad`.
 
-### Decisión 4. Validar los datos al registrar materiales
+### Decisión 5. Validar los datos al registrar materiales
 Nuevo artículo, Ajustar stock, Nuevo insumo, Reponer y el nuevo **Agregar existencias** (elegir un
 material registrado e indicar cuánto se agrega) exigen un nombre reconocible y una cantidad válida:
 enteros ≥ 0 para el stock y > 0 para lo que se agrega. Al enviar, cada campo con problemas muestra
@@ -61,7 +69,14 @@ su mensaje al lado y lo demás se conserva. Un nombre ya registrado ofrece agreg
 Código: `components/FormularioValidado.jsx` (genérico), `FormulariosInventario.jsx`,
 `utils/validacionInventario.js`.
 
-### Decisión 5. Diferenciar una lista vacía de una que todavía está cargando
+### Decisión 6. Buscar personas y materiales desde una misma barra
+La barra del mesón busca personas por nombre o RUT (con o sin puntos) además de materiales. Los
+resultados se agrupan en **Personas** (nombre y RUT) y **Materiales** (nombre y disponibilidad); si
+lo escrito coincide con ambos, se ven las dos secciones. ↑/↓ y Enter para elegir.
+
+Código: `components/SugerenciasBusqueda.jsx`, `personasSugeridas` en `hooks/usePrestamosPageState.js`.
+
+### Decisión 7. Diferenciar una lista vacía de una que todavía está cargando
 Mientras se cargan los préstamos se ve **Cargando préstamos...**. Al terminar se muestran los
 registros, o **No hay préstamos activos** si no hay ninguno (o *Sin resultados para esa búsqueda* si
 se estaba filtrando). Si la conexión falla, se avisa y se ofrece **Reintentar**. En modo Original se
@@ -70,23 +85,6 @@ carga. La guía de esta decisión trae botones para simular una carga lenta, una
 vacía y una falla de conexión.
 
 Código: `components/MensajeListaVacia.jsx`, simulación de red en `src/novedades/estado.js`.
-
-### Decisión 6. Buscar personas y materiales desde una misma barra
-La barra del mesón busca personas por nombre o RUT (con o sin puntos) además de materiales. Los
-resultados se agrupan en **Personas** (nombre y RUT) y **Materiales** (nombre y disponibilidad); si
-lo escrito coincide con ambos, se ven las dos secciones. ↑/↓ y Enter para elegir.
-
-Código: `components/SugerenciasBusqueda.jsx`, `personasSugeridas` en `hooks/usePrestamosPageState.js`.
-
-### Además (no está en el informe ni en el inicio). Resumen antes de devolver y movimientos del turno
-Funciona en el modo Mejoras, pero no tiene tarjeta, guía ni marcas porque no es parte del informe.
-
-Antes de registrar una devolución se muestra el estudiante (con RUT), el objeto con su **código** y
-la fecha del préstamo, con el botón **Confirmar devolución**. Cada devolución queda en
-**Movimientos del turno** (junto a *Activos* y *Vencidos*) con un botón **Revertir**, que vuelve a
-dejar activo el préstamo a nombre del mismo estudiante y registra quién lo revirtió y a qué hora.
-
-Código: `components/ResumenDevolucion.jsx`, `ConfirmarDevolucionModal.jsx`, `MovimientosTurno.jsx`.
 
 ## Para quien revisa
 
@@ -101,7 +99,7 @@ guía *Prueba esto* (con enlace a la siguiente). En el encabezado del panel:
 La vitrina (`src/novedades/`) es genérica; cada mejora se declara una sola vez:
 
 1. Agrega una entrada a `src/modules/prestamos/novedades.js` con `id`, `numero` (el de la decisión
-   en el informe, o `null` si es un extra), `titulo`,
+   en el informe, o `null` si no está en el informe, y entonces no se muestra), `titulo`,
    `problema`, `solucion`, `icono`, `ruta`, `pasos` y, opcionalmente, `preparar(ctx)` para dejar
    la pantalla lista (recibe el estado del panel; devuelve `false` si aún faltan datos). Con eso ya
    aparece su tarjeta en el inicio y su guía.

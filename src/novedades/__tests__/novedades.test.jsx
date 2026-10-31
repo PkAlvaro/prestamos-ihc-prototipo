@@ -70,13 +70,17 @@ describe('vitrina de novedades', () => {
 
   it('la numeración calza con el informe (1 a 6) y lo que no está en él no se muestra', () => {
     const numeros = NOVEDADES_PRESTAMOS.filter(n => n.numero).map(n => n.numero)
-    expect(numeros).toEqual([1, 2, 3, 4, 5, 6])
-    expect(NOVEDADES_PRESTAMOS.find(n => n.numero === 5).titulo).toBe(
+    expect(numeros).toEqual([1, 2, 3, 4, 5, 6, 7])
+    expect(NOVEDADES_PRESTAMOS.find(n => n.numero === 3).titulo).toBe(
+      'Confirmar y poder revertir una devolución'
+    )
+    expect(NOVEDADES_PRESTAMOS.find(n => n.numero === 7).titulo).toBe(
       'Diferenciar una lista vacía de una que todavía está cargando'
     )
-    const extras = NOVEDADES_PRESTAMOS.filter(n => !n.numero)
-    expect(extras.map(n => n.id)).toEqual(['resumen-devolucion'])
-    expect(visiblesEnVitrina(NOVEDADES_PRESTAMOS).map(n => n.numero)).toEqual([1, 2, 3, 4, 5, 6])
+    const sinNumero = { ...NOVEDADES_PRESTAMOS[0], id: 'fuera-del-informe', numero: null }
+    expect(visiblesEnVitrina([...NOVEDADES_PRESTAMOS, sinNumero]).map(n => n.numero)).toEqual([
+      1, 2, 3, 4, 5, 6, 7,
+    ])
   })
 
   it('Decisión 5: distingue cargando de vacío; en modo original se ve vacío mientras carga', () => {
@@ -106,7 +110,14 @@ describe('vitrina de novedades', () => {
   })
 
   it('lo que no está en el informe no lleva marca "Nuevo"', () => {
-    conVitrina(<MarcaNuevo novedad="resumen-devolucion" />)
+    const fuera = { ...NOVEDADES_PRESTAMOS[0], id: 'fuera-del-informe', numero: null }
+    render(
+      <MemoryRouter>
+        <NovedadesProvider catalogo={[fuera]}>
+          <MarcaNuevo novedad="fuera-del-informe" />
+        </NovedadesProvider>
+      </MemoryRouter>
+    )
     expect(screen.queryByText(/Nuevo/)).toBeNull()
   })
 })
