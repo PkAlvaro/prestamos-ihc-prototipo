@@ -217,6 +217,20 @@ function cerrarPrestamo(p, { multa, tipo_pago, monto_cobrado, comentario, cobro_
   })
 }
 
+const sinTildes = s =>
+  String(s ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+/** Agrega el reporte de disponibilidad pendiente más reciente del artículo, si hay. */
+function conReportePendiente(articulo) {
+  const pendientes = db.reportesDisponibilidad.filter(
+    r => r.articulo_id === articulo.id && r.estado === 'PENDIENTE'
+  )
+  return { ...articulo, reporte_pendiente: pendientes.at(-1) ?? null }
+}
+
 const esDeHoy = iso => !!iso && iso.slice(0, 10) === ahoraIso().slice(0, 10)
 
 /** Ejecuta una mutación; los `throw [status, detail]` se convierten en error tipo Axios. */
@@ -253,11 +267,14 @@ export const prestamosApi = {
       } = params
       let items = db.estudiantes
       if (q) {
-        const t = q.toLowerCase()
+        // Sin tildes en nombres y con o sin puntos/guion en el RUT: "jose" encuentra a
+        // José y "19.133.3" encuentra 19133300-4
+        const t = sinTildes(q)
+        const tRut = q.replace(/[.\s-]/g, '').toLowerCase()
         items = items.filter(
           e =>
-            e.nombre.toLowerCase().includes(t) ||
-            e.rut.toLowerCase().includes(t) ||
+            sinTildes(e.nombre).includes(t) ||
+            (tRut.length >= 3 && e.rut.replace(/-/g, '').toLowerCase().includes(tRut)) ||
             (e.email || '').toLowerCase().includes(t)
         )
       }
@@ -364,12 +381,59 @@ export const prestamosApi = {
 
   // --- ARTÍCULOS ---
 
-  listarArticulos: async () => leer(() => db.articulos),
+  listarArticulos: async () => leer(() => db.articulos.map(conReportePendiente)),
+
+  // --- REPORTES DE DIFERENCIA DE DISPONIBILIDAD (mejora 4) ---
+
+  /**
+   * Deja constancia de que lo que se ve en el estante no coincide con el registro.
+   * No toca las existencias: queda pendiente hasta que alguien lo revise.
+   */
+  reportarDiferenciaDisponibilidad: async ({ articulo_id, cantidad_observada, comentario }) =>
+    mutar(() => {
+      const art = articuloPorId(articulo_id)
+      if (!art) throw [404, 'Articulo no encontrado']
+      const observada = Number(cantidad_observada)
+      if (!Number.isInteger(observada) || observada < 0) {
+        throw [422, 'La cantidad observada debe ser un entero no negativo']
+      }
+      const reporte = {
+        id: siguienteId(db.reportesDisponibilidad),
+        articulo_id: art.id,
+        cantidad_registrada: art.stock_disponible,
+        cantidad_observada: observada,
+        comentario: (comentario || '').trim() || null,
+        reportado_por: RESPONSABLE.nombre,
+        fecha: ahoraIso(),
+        estado: 'PENDIENTE',
+        revisado_por: null,
+        revisado_en: null,
+        nota_revision: null,
+      }
+      db.reportesDisponibilidad.push(reporte)
+      return reporte
+    }),
+
+  /** Cierra un reporte. Si hay que corregir el stock, se hace aparte con "Ajustar stock". */
+  revisarReporteDisponibilidad: async (reporteId, { nota } = {}) =>
+    mutar(() => {
+      const reporte = db.reportesDisponibilidad.find(r => r.id === Number(reporteId))
+      if (!reporte) throw [404, 'Reporte no encontrado']
+      if (reporte.estado !== 'PENDIENTE') throw [400, 'Este reporte ya fue revisado']
+      Object.assign(reporte, {
+        estado: 'REVISADO',
+        revisado_por: RESPONSABLE.nombre,
+        revisado_en: ahoraIso(),
+        nota_revision: (nota || '').trim() || null,
+      })
+      return reporte
+    }),
 
   crearArticulo: async data =>
     mutar(() => {
       if (!data.nombre?.trim()) throw [400, 'El nombre es obligatorio']
-      const stock = Number(data.stock_total) || 1
+      const stock = Number.isInteger(Number(data.stock_total)) ? Number(data.stock_total) : 1
+      if (stock < 0) throw [422, 'El stock no puede ser negativo']
       const prefijo = PREFIJOS_CODIGO[data.categoria] || 'ART'
       const correlativo = db.articulos.filter(a => a.codigo?.startsWith(`${prefijo}-`)).length + 1
       const art = {
@@ -433,7 +497,7 @@ export const prestamosApi = {
       return fuse
         .search(query)
         .slice(0, topK)
-        .map(({ item: { _alternativos, ...a } }) => a)
+        .map(({ item: { _alternativos, ...a } }) => conReportePendiente(a))
     }),
 
   // --- PRÉSTAMOS ---

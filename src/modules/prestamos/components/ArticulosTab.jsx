@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import MensajeListaVacia from './MensajeListaVacia'
 import OtrosNombresModal from './OtrosNombresModal'
+import { AvisoPorRevisar } from './DisponibilidadPorRevisar'
 import { MarcaNuevo, useNovedad } from '../../../novedades'
 import useEscape from '../hooks/useEscape'
 import {
@@ -16,6 +17,8 @@ import {
   AlertTriangle,
   Trash2,
   Tags,
+  PackagePlus,
+  Eye,
 } from 'lucide-react'
 
 export default function ArticulosTab({ ctx, cn }) {
@@ -49,9 +52,14 @@ export default function ArticulosTab({ ctx, cn }) {
     confirmEliminarArticulo,
     cancelEliminarArticulo,
     handleGuardarAlias,
+    setAgregarExistenciasDe,
+    setReportarDiferenciaDe,
+    setRevisarReporteDe,
   } = ctx
   const [otrosNombresDe, setOtrosNombresDe] = useState(null) // articulo | null
   const { activa: conSinonimos } = useNovedad('busqueda-sinonimos')
+  const { activa: conValidacion } = useNovedad('validacion-inventario')
+  const { activa: conReportes } = useNovedad('diferencia-disponibilidad')
 
   useEscape(cancelEliminarArticulo, !!deleteArticuloPending)
 
@@ -148,7 +156,16 @@ export default function ArticulosTab({ ctx, cn }) {
       {/* Vista Articulos */}
       {activeInventoryTab === 'articulos' && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {conValidacion && (
+              <button
+                onClick={() => setAgregarExistenciasDe({ nombre: '' })}
+                className="relative px-4 py-2 bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-700 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                <MarcaNuevo novedad="validacion-inventario" flotante />
+                <PackagePlus className="w-4 h-4" /> Agregar existencias
+              </button>
+            )}
             <button
               onClick={() => setShowNuevoArticulo(true)}
               className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
@@ -292,6 +309,11 @@ export default function ArticulosTab({ ctx, cn }) {
                     )}
                   </button>
                 )}
+                {conReportes && (
+                  <div className="mb-3">
+                    <AvisoPorRevisar articulo={articulo} onRevisar={setRevisarReporteDe} />
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-gray-50/80 rounded-xl p-2.5 text-center border border-gray-100">
                     <div className="flex items-center justify-center gap-1">
@@ -340,6 +362,15 @@ export default function ArticulosTab({ ctx, cn }) {
                     </p>
                   </div>
                 </div>
+                {conReportes && !articulo.reporte_pendiente && (
+                  <button
+                    onClick={() => setReportarDiferenciaDe(articulo)}
+                    className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 hover:text-orange-700 cursor-pointer transition-colors duration-[120ms]"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> Reportar diferencia de disponibilidad
+                    {indice === 0 && <MarcaNuevo novedad="diferencia-disponibilidad" />}
+                  </button>
+                )}
               </div>
             ))}
           </div>

@@ -24,6 +24,10 @@ export function usePrestamosPageState(onBack) {
   const { currentUser } = useAuth()
   // Mejora 2: sin ella, la búsqueda solo mira nombre y categoría (como el sistema original)
   const { activa: sinonimosActiva } = useNovedad('busqueda-sinonimos')
+  // Mejora 6: la barra principal también busca personas por nombre o RUT
+  const { activa: busquedaPersonas } = useNovedad('busqueda-personas')
+  // Mejora 4: se puede elegir por nombre un material sin unidades libres para reportarlo
+  const { activa: conReportes } = useNovedad('diferencia-disponibilidad')
   const explicar = (consulta, articulo) =>
     sinonimosActiva ? explicarCoincidencia(consulta, articulo) : null
 
@@ -149,6 +153,17 @@ export function usePrestamosPageState(onBack) {
     cancelEliminarArticulo,
     handleRenombrarArticulo,
     handleGuardarAlias,
+    agregarExistenciasDe,
+    setAgregarExistenciasDe,
+    handleCrearArticuloConDatos,
+    handleAgregarExistencias,
+    handleCrearInsumoConDatos,
+    reportarDiferenciaDe,
+    setReportarDiferenciaDe,
+    revisarReporteDe,
+    setRevisarReporteDe,
+    handleReportarDiferencia,
+    handleRevisarReporte,
     handleAjustarStockArticulo,
     handleIncrementarStockArticulo,
     handleCrearInsumo,
@@ -477,17 +492,43 @@ export function usePrestamosPageState(onBack) {
     return fuseArticulos
       .search(qNorm)
       .map(r => ({ ...r.item, _coincidencia: explicar(smartInput, r.item) }))
-      .filter(a => a.stock_disponible > 0)
+      .filter(a => a.stock_disponible > 0 || busquedaPersonas || conReportes)
       .slice(0, 5)
   }, [smartInput, fuseArticulos]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Personas que coinciden con lo escrito (nombre o RUT, con o sin puntos)
+  const [personasSugeridas, setPersonasSugeridas] = React.useState([])
   React.useEffect(() => {
-    if (filteredSuggestions.length > 0) {
-      setShowSuggestions(true)
-    } else {
-      setShowSuggestions(false)
+    const texto = smartInput.trim()
+    const esTucOQr = /^[0-9]{11}$/.test(texto) || texto.includes('://')
+    if (!busquedaPersonas || texto.length < 2 || esTucOQr) {
+      setPersonasSugeridas([])
+      return
     }
-  }, [filteredSuggestions])
+    let vigente = true
+    const timer = setTimeout(async () => {
+      try {
+        const { items } = await prestamosApi.listarEstudiantes({ q: texto, limit: 5 })
+        if (vigente) setPersonasSugeridas(items || [])
+      } catch {
+        if (vigente) setPersonasSugeridas([])
+      }
+    }, 200)
+    return () => {
+      vigente = false
+      clearTimeout(timer)
+    }
+  }, [smartInput, busquedaPersonas])
+
+  React.useEffect(() => {
+    setShowSuggestions(filteredSuggestions.length > 0 || personasSugeridas.length > 0)
+  }, [filteredSuggestions, personasSugeridas])
+
+  const handleSeleccionarPersona = persona => {
+    setShowSuggestions(false)
+    setPersonasSugeridas([])
+    handleScan(persona.rut)
+  }
 
   // Calcular multas del estudiante actual
   const estudianteFines = React.useMemo(() => {
@@ -770,6 +811,17 @@ export function usePrestamosPageState(onBack) {
     handleEliminarArticulo,
     handleRenombrarArticulo,
     handleGuardarAlias,
+    agregarExistenciasDe,
+    setAgregarExistenciasDe,
+    handleCrearArticuloConDatos,
+    handleAgregarExistencias,
+    handleCrearInsumoConDatos,
+    reportarDiferenciaDe,
+    setReportarDiferenciaDe,
+    revisarReporteDe,
+    setRevisarReporteDe,
+    handleReportarDiferencia,
+    handleRevisarReporte,
     handleAjustarStockArticulo,
     handleIncrementarStockArticulo,
     deleteArticuloPending,
@@ -859,6 +911,8 @@ export function usePrestamosPageState(onBack) {
     setShowSuggestions,
     filteredSuggestions,
     estudianteFines,
+    personasSugeridas,
+    handleSeleccionarPersona,
     handleSuggestionClick,
     pendingArticulo,
     pendingCantidad,

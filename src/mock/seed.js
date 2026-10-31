@@ -538,6 +538,7 @@ export function crearSeed(ahora = new Date()) {
     cobrosArriendo,
     correos,
     movimientos,
+    reportesDisponibilidad: [],
     notificacionConfig: {
       enabled: true,
       multa_minima: 1000,

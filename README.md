@@ -49,6 +49,31 @@ dejar activo el préstamo a nombre del mismo estudiante y registra quién lo rev
 
 Código: `components/ResumenDevolucion.jsx`, `ConfirmarDevolucionModal.jsx`, `MovimientosTurno.jsx`.
 
+### 4. Reportar diferencia de disponibilidad
+Al elegir un material por nombre (en la barra del mesón o en su ficha de Stock) aparece **Reportar
+diferencia de disponibilidad**: el encargado indica cuántas unidades libres ve en el estante y, si
+quiere, un comentario. La ficha queda con el aviso **Disponibilidad por revisar**. El reporte no
+cambia las existencias: desde Stock, **Revisar** permite cerrarlo o corregir con *Ajustar stock*.
+
+Código: `components/DisponibilidadPorRevisar.jsx`, API `reportarDiferenciaDisponibilidad` y
+`revisarReporteDisponibilidad`.
+
+### 5. Formularios de inventario que explican qué falta
+Nuevo artículo, Ajustar stock, Nuevo insumo, Reponer y el nuevo **Agregar existencias** (elegir un
+material registrado e indicar cuánto se agrega) exigen un nombre reconocible y una cantidad válida:
+enteros ≥ 0 para el stock y > 0 para lo que se agrega. Al enviar, cada campo con problemas muestra
+su mensaje al lado y lo demás se conserva. Un nombre ya registrado ofrece agregarle existencias.
+
+Código: `components/FormularioValidado.jsx` (genérico), `FormulariosInventario.jsx`,
+`utils/validacionInventario.js`.
+
+### 6. Buscar personas y materiales en la misma barra
+La barra del mesón busca personas por nombre o RUT (con o sin puntos) además de materiales. Los
+resultados se agrupan en **Personas** (nombre y RUT) y **Materiales** (nombre y disponibilidad); si
+lo escrito coincide con ambos, se ven las dos secciones. ↑/↓ y Enter para elegir.
+
+Código: `components/SugerenciasBusqueda.jsx`, `personasSugeridas` en `hooks/usePrestamosPageState.js`.
+
 ## Para quien revisa
 
 La página de inicio lista las mejoras. **Probar** abre cada una con la pantalla ya preparada y una

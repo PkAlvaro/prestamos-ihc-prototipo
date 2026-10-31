@@ -912,6 +912,95 @@ export function usePrestamosActions() {
     }
   }
 
+  // --- FORMULARIOS VALIDADOS DE INVENTARIO (mejora 5) ---
+  // Reciben los valores ya validados por <FormularioValidado> y devuelven true si se
+  // guardó (el formulario se cierra) o false (queda abierto con lo escrito).
+
+  const [agregarExistenciasDe, setAgregarExistenciasDe] = useState(null) // { nombre } | null
+
+  const handleCrearArticuloConDatos = async ({ nombre, categoria, descripcion, stock_total }) => {
+    try {
+      await prestamosApi.crearArticulo({
+        nombre: nombre.trim(),
+        categoria: categoria.trim() || null,
+        descripcion: descripcion.trim() || null,
+        stock_total: Number(stock_total),
+      })
+      toast.success(`${nombre.trim()} quedó registrado con ${stock_total} unidad(es)`)
+      await loadPrestamosData()
+      return true
+    } catch (e) {
+      toast.error('Error al crear artículo: ' + mensajeDeError(e))
+      return false
+    }
+  }
+
+  const handleAgregarExistencias = async (articulo, cantidad) => {
+    try {
+      const total = articulo.stock_total + cantidad
+      await prestamosApi.actualizarArticulo(articulo.id, { stock_total: total })
+      toast.success(`Se agregaron ${cantidad} a ${articulo.nombre} (ahora ${total} en total)`)
+      await loadPrestamosData()
+      return true
+    } catch (e) {
+      toast.error('Error al agregar existencias: ' + mensajeDeError(e))
+      return false
+    }
+  }
+
+  const handleCrearInsumoConDatos = async ({ nombre, categoria, stock_inicial, stock_critico }) => {
+    try {
+      await prestamosApi.crearInsumo({
+        nombre: nombre.trim(),
+        categoria: categoria.trim(),
+        stock_inicial: Number(stock_inicial),
+        stock_critico: Number(stock_critico),
+      })
+      toast.success(`${nombre.trim()} quedó registrado`)
+      await loadPrestamosData()
+      return true
+    } catch (e) {
+      toast.error('Error al crear insumo: ' + mensajeDeError(e))
+      return false
+    }
+  }
+
+  // --- DIFERENCIAS DE DISPONIBILIDAD (mejora 4) ---
+
+  const [reportarDiferenciaDe, setReportarDiferenciaDe] = useState(null) // articulo | null
+  const [revisarReporteDe, setRevisarReporteDe] = useState(null) // articulo | null
+
+  const handleReportarDiferencia = async (articulo, { cantidad_observada, comentario }) => {
+    try {
+      await prestamosApi.reportarDiferenciaDisponibilidad({
+        articulo_id: articulo.id,
+        cantidad_observada: Number(cantidad_observada),
+        comentario,
+      })
+      toast.success(
+        `Diferencia reportada en ${articulo.nombre}. Queda pendiente de revisión; las existencias no cambiaron.`
+      )
+      await loadPrestamosData()
+      return true
+    } catch (e) {
+      toast.error('Error al reportar: ' + mensajeDeError(e))
+      return false
+    }
+  }
+
+  const handleRevisarReporte = async (reporte, nota) => {
+    try {
+      await prestamosApi.revisarReporteDisponibilidad(reporte.id, { nota })
+      toast.success('Reporte marcado como revisado')
+      setRevisarReporteDe(null)
+      await loadPrestamosData()
+      return true
+    } catch (e) {
+      toast.error('Error al revisar: ' + mensajeDeError(e))
+      return false
+    }
+  }
+
   const handleGuardarAlias = async (articulo, alias) => {
     try {
       await prestamosApi.actualizarArticulo(articulo.id, { alias })
@@ -980,8 +1069,10 @@ export function usePrestamosActions() {
       inventario.setShowReponerInsumo(null)
       inventario.setReponerCantidad(1)
       await loadPrestamosData()
+      return true
     } catch (e) {
       toast.error('Error al reponer insumo: ' + mensajeDeError(e))
+      return false
     } finally {
       ui.setIsLoading(false)
     }
@@ -1079,6 +1170,17 @@ export function usePrestamosActions() {
     cancelEliminarArticulo,
     handleRenombrarArticulo,
     handleGuardarAlias,
+    agregarExistenciasDe,
+    setAgregarExistenciasDe,
+    handleCrearArticuloConDatos,
+    handleAgregarExistencias,
+    handleCrearInsumoConDatos,
+    reportarDiferenciaDe,
+    setReportarDiferenciaDe,
+    revisarReporteDe,
+    setRevisarReporteDe,
+    handleReportarDiferencia,
+    handleRevisarReporte,
     handleAjustarStockArticulo,
     handleIncrementarStockArticulo,
     handleCrearInsumo,

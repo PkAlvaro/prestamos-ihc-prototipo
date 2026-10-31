@@ -166,4 +166,54 @@ describe('API simulada de préstamos', () => {
     expect(reabierto.estudiante_id).toBe(est.id)
     expect(reabierto.comentario).toMatch(/revertida por Usuario Demo/)
   })
+
+  it('reportar una diferencia de disponibilidad no cambia las existencias y queda pendiente', async () => {
+    const art = db.articulos.find(a => a.stock_disponible > 1)
+    const antes = { total: art.stock_total, libres: art.stock_disponible }
+    await prestamosApi.reportarDiferenciaDisponibilidad({
+      articulo_id: art.id,
+      cantidad_observada: art.stock_disponible - 1,
+      comentario: 'una no está',
+    })
+    const ficha = (await prestamosApi.listarArticulos()).find(a => a.id === art.id)
+    expect(ficha.stock_total).toBe(antes.total)
+    expect(ficha.stock_disponible).toBe(antes.libres)
+    expect(ficha.reporte_pendiente).toMatchObject({
+      cantidad_registrada: antes.libres,
+      cantidad_observada: antes.libres - 1,
+      estado: 'PENDIENTE',
+      reportado_por: 'Usuario Demo',
+    })
+    // La búsqueda de Stock usa otro endpoint: también debe traer el aviso
+    const [buscada] = await prestamosApi.buscarArticulosSemantico(art.nombre, false)
+    expect(buscada.reporte_pendiente?.id).toBe(ficha.reporte_pendiente.id)
+    await prestamosApi.revisarReporteDisponibilidad(ficha.reporte_pendiente.id, { nota: 'ok' })
+    const revisada = (await prestamosApi.listarArticulos()).find(a => a.id === art.id)
+    expect(revisada.reporte_pendiente).toBeNull()
+    expect(revisada.stock_total).toBe(antes.total)
+  })
+
+  it('se puede crear un artículo con stock inicial 0', async () => {
+    const art = await prestamosApi.crearArticulo({
+      nombre: 'Lupa',
+      categoria: 'Varios',
+      stock_total: 0,
+    })
+    expect(art).toMatchObject({ stock_total: 0, stock_disponible: 0 })
+  })
+
+  it('busca personas por nombre sin tildes y por RUT con o sin puntos', async () => {
+    const est = db.estudiantes.find(e => /[áéíóú]/.test(e.nombre) && /^\d{8}-/.test(e.rut))
+    const sinTilde = est.nombre
+      .split(' ')[0]
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+    expect((await prestamosApi.listarEstudiantes({ q: sinTilde })).items.map(e => e.id)).toContain(
+      est.id
+    )
+    const conPuntos = `${est.rut.slice(0, 2)}.${est.rut.slice(2, 5)}.${est.rut.slice(5, 7)}`
+    expect((await prestamosApi.listarEstudiantes({ q: conPuntos })).items.map(e => e.id)).toContain(
+      est.id
+    )
+  })
 })

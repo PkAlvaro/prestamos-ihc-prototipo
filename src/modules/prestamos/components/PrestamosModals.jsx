@@ -17,7 +17,15 @@ import DevolverLoteModal from './DevolverLoteModal'
 import ConfirmDialog from './ConfirmDialog'
 import ConfirmarDevolucionModal from './ConfirmarDevolucionModal'
 import { PonerEnEsperaBoton } from './AtencionesEnEspera'
-import { SoloConMejora } from '../../../novedades'
+import { SoloConMejora, useNovedad } from '../../../novedades'
+import {
+  NuevoArticuloForm,
+  AgregarExistenciasForm,
+  AjustarStockForm,
+  NuevoInsumoForm,
+  ReponerInsumoForm,
+} from './FormulariosInventario'
+import { ReportarDiferenciaForm, RevisarReporteModal } from './DisponibilidadPorRevisar'
 
 const normalizeStr = s => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
@@ -37,6 +45,9 @@ export default function PrestamosModals({ ctx }) {
   const { devolucionModal, setDevolucionModal, handleConfirmarDevolucion } = ctx
   const [carreraOtro, setCarreraOtro] = useState(false)
   const [busy, guard] = useSubmitGuard()
+  // Mejora 5: formularios que explican qué falta en cada campo (si no, los originales)
+  const { activa: conValidacion } = useNovedad('validacion-inventario')
+  const materiales = ctx.prestamosArticulos ?? []
 
   // El botón de crear solo se habilita con datos válidos (en vez de avisar tras el clic).
   const { nuevoArticulo: art, nuevoInsumo: ins } = ctx
@@ -168,7 +179,45 @@ export default function PrestamosModals({ ctx }) {
         />
       )}
       {/* Modal Nuevo Artículo */}
-      {showNuevoArticulo && (
+      {showNuevoArticulo && conValidacion && (
+        <NuevoArticuloForm
+          materiales={materiales}
+          onEnviar={ctx.handleCrearArticuloConDatos}
+          onCerrar={() => setShowNuevoArticulo(false)}
+          onAgregarExistencias={m => {
+            setShowNuevoArticulo(false)
+            ctx.setAgregarExistenciasDe({ nombre: m.nombre })
+          }}
+        />
+      )}
+      {ctx.agregarExistenciasDe && (
+        <AgregarExistenciasForm
+          materiales={materiales}
+          nombreInicial={ctx.agregarExistenciasDe.nombre}
+          onEnviar={ctx.handleAgregarExistencias}
+          onCerrar={() => ctx.setAgregarExistenciasDe(null)}
+        />
+      )}
+      {ctx.reportarDiferenciaDe && (
+        <ReportarDiferenciaForm
+          articulo={ctx.reportarDiferenciaDe}
+          onEnviar={ctx.handleReportarDiferencia}
+          onCerrar={() => ctx.setReportarDiferenciaDe(null)}
+        />
+      )}
+      {ctx.revisarReporteDe && (
+        <RevisarReporteModal
+          articulo={ctx.revisarReporteDe}
+          onMarcarRevisado={ctx.handleRevisarReporte}
+          onAjustarStock={articulo => {
+            ctx.setRevisarReporteDe(null)
+            setAjustarStockArticulo(articulo)
+            setAjustarStockValor(articulo.stock_total)
+          }}
+          onCerrar={() => ctx.setRevisarReporteDe(null)}
+        />
+      )}
+      {showNuevoArticulo && !conValidacion && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl bg-white border border-cai-border">
             <div className="p-6 flex justify-between items-center bg-cai-surface border-b border-cai-border">
@@ -263,7 +312,15 @@ export default function PrestamosModals({ ctx }) {
       )}
 
       {/* Modal Ajustar Stock de Artículo: control total (subir, bajar o fijar un valor) */}
+      {ajustarStockArticulo && conValidacion && (
+        <AjustarStockForm
+          articulo={ajustarStockArticulo}
+          onEnviar={handleAjustarStockArticulo}
+          onCerrar={() => setAjustarStockArticulo(null)}
+        />
+      )}
       {ajustarStockArticulo &&
+        !conValidacion &&
         (() => {
           const prestados = ajustarStockArticulo.stock_total - ajustarStockArticulo.stock_disponible
           const valorInvalido =
@@ -340,7 +397,13 @@ export default function PrestamosModals({ ctx }) {
         })()}
 
       {/* Modal Nuevo Insumo */}
-      {showNuevoInsumo && (
+      {showNuevoInsumo && conValidacion && (
+        <NuevoInsumoForm
+          onEnviar={ctx.handleCrearInsumoConDatos}
+          onCerrar={() => setShowNuevoInsumo(false)}
+        />
+      )}
+      {showNuevoInsumo && !conValidacion && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl bg-white border border-cai-border">
             <div className="p-6 flex justify-between items-center bg-cai-surface border-b border-cai-border">
@@ -408,7 +471,20 @@ export default function PrestamosModals({ ctx }) {
       )}
 
       {/* Modal Reponer Insumo */}
-      {showReponerInsumo && (
+      {showReponerInsumo && conValidacion && (
+        <ReponerInsumoForm
+          insumo={
+            (ctx.insumos ?? []).find(i => i.id === showReponerInsumo) ?? {
+              id: showReponerInsumo,
+              nombre: '',
+              stock_actual: 0,
+            }
+          }
+          onEnviar={handleReponerInsumo}
+          onCerrar={() => setShowReponerInsumo(null)}
+        />
+      )}
+      {showReponerInsumo && !conValidacion && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="rounded-2xl w-full max-w-xs overflow-hidden shadow-2xl bg-white border border-cai-border">
             <div className="p-6 flex justify-between items-center bg-cai-surface border-b border-cai-border">

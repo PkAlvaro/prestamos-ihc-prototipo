@@ -11,10 +11,13 @@ import {
   Search,
   Filter,
   Camera,
+  Eye,
 } from 'lucide-react'
 import InsumoRow from './InsumoRow'
 import useSubmitGuard from '../hooks/useSubmitGuard'
 import AtencionesEnEspera, { PonerEnEsperaBoton } from './AtencionesEnEspera'
+import SugerenciasBusqueda, { FilaMaterial, itemsDeBusqueda } from './SugerenciasBusqueda'
+import { AvisoPorRevisar } from './DisponibilidadPorRevisar'
 import { MarcaNuevo, useNovedad } from '../../../novedades'
 
 const CameraScanner = lazy(() => import('./CameraScanner'))
@@ -65,12 +68,27 @@ export default function EscaneoTab({ ctx, cn }) {
     handleMinimizarAtencion,
     handleRetomarAtencion,
     handleDescartarAtencion,
+    personasSugeridas,
+    handleSeleccionarPersona,
+    setReportarDiferenciaDe,
   } = ctx
 
   const totalUnidades = articulosEscaneados.reduce((sum, a) => sum + a.cantidad, 0)
   // Mejora 1: en la versión original solo existía la espera del código de verificación
   const { activa: puedePonerEnEspera } = useNovedad('atenciones-espera')
-  const { activa: conSinonimos } = useNovedad('busqueda-sinonimos')
+  const { activa: busquedaPersonas } = useNovedad('busqueda-personas')
+  const { activa: conReportes } = useNovedad('diferencia-disponibilidad')
+  // Mejora 6: resultados de personas y materiales navegables con ↑/↓ y Enter
+  const itemsBusqueda = itemsDeBusqueda(
+    busquedaPersonas ? personasSugeridas : [],
+    filteredSuggestions
+  )
+  const [resaltado, setResaltado] = useState(0)
+  React.useEffect(() => setResaltado(0), [personasSugeridas, filteredSuggestions])
+  const elegirItem = item =>
+    item.tipo === 'persona'
+      ? handleSeleccionarPersona(item.valor)
+      : handleSuggestionClick(item.valor)
   const listoParaPrestar = estudianteEscaneado && articulosEscaneados.length > 0
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -149,7 +167,9 @@ export default function EscaneoTab({ ctx, cn }) {
           <div className="mb-6">
             <div className="flex items-center justify-between gap-3 mb-2">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                Escaneo Universal (TUC o nombre de artículo)
+                {busquedaPersonas
+                  ? 'Escaneo universal (TUC, persona o material)'
+                  : 'Escaneo Universal (TUC o nombre de artículo)'}
               </label>
               <button
                 onClick={handleAbrirIngresoManual}
@@ -171,8 +191,18 @@ export default function EscaneoTab({ ctx, cn }) {
                     if (showConsentModal) e.target.blur()
                   }}
                   onKeyDown={async e => {
-                    if (showConsentModal || e.key !== 'Enter' || !smartInput) return
-                    if (showSuggestions && filteredSuggestions.length > 0) {
+                    if (showConsentModal || !smartInput) return
+                    const conLista = busquedaPersonas && showSuggestions && itemsBusqueda.length > 0
+                    if (conLista && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                      e.preventDefault()
+                      const paso = e.key === 'ArrowDown' ? 1 : -1
+                      setResaltado(i => (i + paso + itemsBusqueda.length) % itemsBusqueda.length)
+                      return
+                    }
+                    if (e.key !== 'Enter') return
+                    if (conLista) {
+                      elegirItem(itemsBusqueda[Math.min(resaltado, itemsBusqueda.length - 1)])
+                    } else if (showSuggestions && filteredSuggestions.length > 0) {
                       // Hay sugerencias de artículo: abrir el selector de cantidad de la primera
                       handleSuggestionClick(filteredSuggestions[0])
                     } else {
@@ -181,7 +211,11 @@ export default function EscaneoTab({ ctx, cn }) {
                       await handleScan(searchValue)
                     }
                   }}
-                  placeholder="Escanea TUC, busca un artículo o ingresa RUT manual..."
+                  placeholder={
+                    busquedaPersonas
+                      ? 'Escanea TUC, o busca una persona (nombre o RUT) o un material…'
+                      : 'Escanea TUC, busca un artículo o ingresa RUT manual...'
+                  }
                   className={`flex-1 px-5 py-4 bg-white/50 rounded-xl outline-none focus:bg-white focus:ring-2 text-base font-semibold transition-all placeholder:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                     searchRutNormalizado
                       ? 'border-2 border-emerald-300 focus:border-emerald-400 focus:ring-emerald-500/20'
@@ -206,52 +240,28 @@ export default function EscaneoTab({ ctx, cn }) {
                   </div>
                 )}
               </div>
-              {showSuggestions && (
-                <div className="absolute top-[100%] left-0 right-0 mt-2 rounded-xl shadow-xl overflow-hidden z-50 bg-white border border-cai-border">
-                  {filteredSuggestions.map((art, indice) => (
-                    <button
-                      key={art.id}
-                      onClick={() => handleSuggestionClick(art)}
-                      className="w-full text-left px-5 py-3 transition-colors flex items-center gap-3 outline-none border-b border-cai-border"
-                      onMouseEnter={e =>
-                        (e.currentTarget.style.backgroundColor = 'var(--surface-lt)')
-                      }
-                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = '')}
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                        <Package className="w-4 h-4 text-emerald-600" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold truncate text-cai-black">{art.nombre}</p>
-                        <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">
-                          {conSinonimos && art.codigo && (
-                            <span className="text-gray-400">{art.codigo} · </span>
-                          )}
-                          {art.stock_disponible} disponible{art.stock_disponible !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                      {art._coincidencia && (
-                        <span
-                          className="shrink-0 max-w-[45%] truncate px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-semibold"
-                          title={
-                            art._coincidencia.tipo === 'alias'
-                              ? 'Coincide con otro nombre registrado para este artículo'
-                              : 'Coincide por sinónimo'
-                          }
-                        >
-                          «{art._coincidencia.buscado}» ={' '}
-                          {art._coincidencia.tipo === 'alias'
-                            ? 'otro nombre'
-                            : art._coincidencia.es}
-                          {indice === 0 && (
-                            <MarcaNuevo novedad="busqueda-sinonimos" className="ml-1" />
-                          )}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {showSuggestions &&
+                (busquedaPersonas ? (
+                  <SugerenciasBusqueda
+                    personas={personasSugeridas}
+                    materiales={filteredSuggestions}
+                    resaltado={resaltado}
+                    setResaltado={setResaltado}
+                    onPersona={handleSeleccionarPersona}
+                    onMaterial={handleSuggestionClick}
+                  />
+                ) : (
+                  <div className="absolute top-[100%] left-0 right-0 mt-2 rounded-xl shadow-xl overflow-hidden z-50 bg-white border border-cai-border">
+                    {filteredSuggestions.map((art, indice) => (
+                      <FilaMaterial
+                        key={art.id}
+                        art={art}
+                        primero={indice === 0}
+                        onElegir={handleSuggestionClick}
+                      />
+                    ))}
+                  </div>
+                ))}
               {pendingArticulo && (
                 <div className="absolute top-[100%] left-0 right-0 mt-2 rounded-xl shadow-xl z-50 bg-white border border-cai-border p-4">
                   <div className="flex items-center justify-between gap-3 mb-3">
@@ -260,7 +270,9 @@ export default function EscaneoTab({ ctx, cn }) {
                         {pendingArticulo.nombre}
                       </p>
                       <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">
-                        {pendingMaxCantidad} disponible{pendingMaxCantidad !== 1 ? 's' : ''}
+                        {pendingMaxCantidad > 0
+                          ? `${pendingMaxCantidad} disponible${pendingMaxCantidad !== 1 ? 's' : ''}`
+                          : 'Sin unidades libres para prestar'}
                       </p>
                     </div>
                     <button
@@ -272,55 +284,75 @@ export default function EscaneoTab({ ctx, cn }) {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
+                  {conReportes && pendingArticulo.reporte_pendiente && (
+                    <div className="mb-3">
+                      <AvisoPorRevisar articulo={pendingArticulo} />
+                    </div>
+                  )}
+                  {pendingMaxCantidad > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPendingCantidad(c => Math.max(c - 1, 1))}
+                        disabled={pendingCantidad <= 1}
+                        className="w-9 h-9 shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed text-cai-dark font-bold flex items-center justify-center transition-colors"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={pendingMaxCantidad}
+                        value={pendingCantidad}
+                        autoFocus
+                        onChange={e => {
+                          const val = parseInt(e.target.value, 10)
+                          if (Number.isNaN(val)) {
+                            setPendingCantidad(1)
+                            return
+                          }
+                          setPendingCantidad(Math.min(Math.max(val, 1), pendingMaxCantidad))
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleConfirmarPendiente()
+                          } else if (e.key === 'Escape') {
+                            handleCancelarPendiente()
+                          }
+                        }}
+                        className="w-16 text-center px-2 py-2 bg-white/50 border border-gray-100 rounded-lg outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 text-base font-semibold"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPendingCantidad(c => Math.min(c + 1, pendingMaxCantidad))}
+                        disabled={pendingCantidad >= pendingMaxCantidad}
+                        className="w-9 h-9 shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed text-cai-dark font-bold flex items-center justify-center transition-colors"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmarPendiente}
+                        className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-bold transition-colors"
+                      >
+                        Agregar {pendingCantidad}
+                      </button>
+                    </div>
+                  )}
+                  {conReportes && !pendingArticulo.reporte_pendiente && (
                     <button
                       type="button"
-                      onClick={() => setPendingCantidad(c => Math.max(c - 1, 1))}
-                      disabled={pendingCantidad <= 1}
-                      className="w-9 h-9 shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed text-cai-dark font-bold flex items-center justify-center transition-colors"
-                    >
-                      −
-                    </button>
-                    <input
-                      type="number"
-                      min={1}
-                      max={pendingMaxCantidad}
-                      value={pendingCantidad}
-                      autoFocus
-                      onChange={e => {
-                        const val = parseInt(e.target.value, 10)
-                        if (Number.isNaN(val)) {
-                          setPendingCantidad(1)
-                          return
-                        }
-                        setPendingCantidad(Math.min(Math.max(val, 1), pendingMaxCantidad))
+                      onClick={() => {
+                        setReportarDiferenciaDe(pendingArticulo)
+                        handleCancelarPendiente()
                       }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleConfirmarPendiente()
-                        } else if (e.key === 'Escape') {
-                          handleCancelarPendiente()
-                        }
-                      }}
-                      className="w-16 text-center px-2 py-2 bg-white/50 border border-gray-100 rounded-lg outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 text-base font-semibold"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setPendingCantidad(c => Math.min(c + 1, pendingMaxCantidad))}
-                      disabled={pendingCantidad >= pendingMaxCantidad}
-                      className="w-9 h-9 shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed text-cai-dark font-bold flex items-center justify-center transition-colors"
+                      className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-orange-700 cursor-pointer transition-colors duration-[120ms]"
                     >
-                      +
+                      <Eye className="w-3.5 h-3.5" /> Reportar diferencia de disponibilidad
+                      <MarcaNuevo novedad="diferencia-disponibilidad" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmarPendiente}
-                      className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-bold transition-colors"
-                    >
-                      Agregar {pendingCantidad}
-                    </button>
-                  </div>
+                  )}
                 </div>
               )}
             </div>

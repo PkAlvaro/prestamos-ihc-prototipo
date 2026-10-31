@@ -6,7 +6,7 @@ import { crearSeed, isoLocal } from './seed'
  * Nada sale del navegador.
  */
 
-const STORAGE_KEY = 'prestamos-demo-db-v2'
+const STORAGE_KEY = 'prestamos-demo-db-v3'
 
 function cargar() {
   try {
