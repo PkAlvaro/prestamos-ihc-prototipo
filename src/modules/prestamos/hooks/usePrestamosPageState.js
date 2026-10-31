@@ -70,6 +70,8 @@ export function usePrestamosPageState(onBack) {
 
   const {
     prestamosActivos,
+    setPrestamosActivos,
+    setPrestamosVencidos,
     prestamosVencidos,
     prestamosHistorial,
     historialTotal,
@@ -756,6 +758,8 @@ export function usePrestamosPageState(onBack) {
     historialOffset,
     setHistorialOffset,
     HISTORIAL_LIMIT,
+    setPrestamosActivos,
+    setPrestamosVencidos,
     loadPrestamosData,
     handleAbrirIngresoManual,
     handleScan,

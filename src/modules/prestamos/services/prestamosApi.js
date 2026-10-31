@@ -18,7 +18,7 @@ import {
 import { CARRERAS } from '../constants'
 import { terminosAlternativos } from '../utils/sinonimos'
 import { PREFIJOS_CODIGO } from '../../../mock/seed'
-import { novedadActiva } from '../../../novedades/estado'
+import { novedadActiva, obtenerSimulacion } from '../../../novedades/estado'
 
 /**
  * Servicio de API del módulo de Préstamos — VERSIÓN PROTOTIPO.
@@ -248,8 +248,17 @@ function mutar(fn) {
 
 function leer(fn) {
   refrescarEstados()
-  return responder(fn())
+  const sim = obtenerSimulacion()
+  if (sim.falla) {
+    // Sin `response`, como un error de red real de Axios
+    return new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Network Error')), sim.lenta ? 2500 : 400)
+    )
+  }
+  return responder(fn(), sim.lenta ? 3000 : undefined)
 }
+
+const sinFilasSimuladas = lista => (obtenerSimulacion().vacia ? [] : lista)
 
 export const prestamosApi = {
   // --- ESTUDIANTES ---
@@ -950,7 +959,7 @@ export const prestamosApi = {
   listarPrestamosActivos: async () =>
     leer(() =>
       db.prestamos
-        .filter(p => p.estado !== 'DEVUELTO')
+        .filter(p => p.estado !== 'DEVUELTO' && sinFilasSimuladas([p]).length)
         .sort((a, b) => b.fecha_prestamo.localeCompare(a.fecha_prestamo))
         .map(prestamoConDetalles)
     ),
@@ -958,7 +967,7 @@ export const prestamosApi = {
   listarPrestamosVencidos: async () =>
     leer(() =>
       db.prestamos
-        .filter(p => p.estado === 'VENCIDO')
+        .filter(p => p.estado === 'VENCIDO' && sinFilasSimuladas([p]).length)
         .sort((a, b) => a.fecha_prestamo.localeCompare(b.fecha_prestamo))
         .map(prestamoConDetalles)
     ),

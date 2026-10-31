@@ -35,5 +35,16 @@ export function suscribir(fn) {
   return () => suscriptores.delete(fn)
 }
 
+/**
+ * Simulación de red para las guías (no se guarda): `lenta` retrasa las consultas,
+ * `vacia` hace que las listas de préstamos vuelvan sin filas y `falla` simula una
+ * caída de conexión. La API simulada la consulta en cada lectura.
+ */
+let simulacion = {}
+export const obtenerSimulacion = () => simulacion
+export function simularRed(nueva) {
+  simulacion = { ...(nueva || {}) }
+}
+
 /** ¿Está encendida la mejora `id`? En modo original, ninguna lo está. */
 export const novedadActiva = _id => estado.modo === 'mejoras'

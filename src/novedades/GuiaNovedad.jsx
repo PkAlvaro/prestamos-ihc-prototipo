@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Lightbulb, X } from 'lucide-react'
-import { useNovedades } from './NovedadesContext'
+import { useNovedades, etiquetaNovedad } from './NovedadesContext'
 
 /**
  * Guía "Prueba esto" de la novedad que el revisor eligió en el inicio. Además,
@@ -39,7 +39,7 @@ export default function GuiaNovedad({ contexto }) {
           <Lightbulb className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-wider text-amber-700">
-              Mejora {novedad.numero} · Prueba esto
+              {etiquetaNovedad(novedad)} · Prueba esto
             </p>
             <h2 className="font-bold text-cai-black">{novedad.titulo}</h2>
             <ol className="mt-2 space-y-1 text-sm text-gray-700 list-decimal pl-4">
@@ -47,6 +47,19 @@ export default function GuiaNovedad({ contexto }) {
                 <li key={paso}>{paso}</li>
               ))}
             </ol>
+            {novedad.acciones?.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {novedad.acciones.map(accion => (
+                  <button
+                    key={accion.texto}
+                    onClick={() => accion.ejecutar(contexto)}
+                    className="px-3 py-1.5 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 text-xs font-bold text-amber-900 cursor-pointer transition-colors duration-[120ms]"
+                  >
+                    {accion.texto}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <button

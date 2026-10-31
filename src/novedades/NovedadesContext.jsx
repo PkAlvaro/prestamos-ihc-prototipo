@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useState, useSyncExternalStore } from 'react'
-import { actualizarEstado, obtenerEstado, suscribir } from './estado'
+import { actualizarEstado, obtenerEstado, simularRed, suscribir } from './estado'
 
 const NovedadesContext = createContext(null)
 
@@ -25,17 +25,24 @@ export function NovedadesProvider({ catalogo, children }) {
       setMarcas: marcas => actualizarEstado({ marcas }),
       escenario,
       iniciarEscenario: id => {
+        simularRed(null)
         actualizarEstado({ modo: 'mejoras' })
         setEscenario({ id, preparado: false })
       },
       marcarPreparado: () => setEscenario(e => e && { ...e, preparado: true }),
-      cerrarEscenario: () => setEscenario(null),
+      cerrarEscenario: () => {
+        simularRed(null)
+        setEscenario(null)
+      },
     }),
     [catalogo, estado, escenario]
   )
 
   return <NovedadesContext.Provider value={value}>{children}</NovedadesContext.Provider>
 }
+
+/** "Decisión 3" para las del informe; "Extra" para lo que el prototipo suma aparte. */
+export const etiquetaNovedad = n => (n.numero ? `Decisión ${n.numero}` : 'Extra')
 
 export function useNovedades() {
   return useContext(NovedadesContext)

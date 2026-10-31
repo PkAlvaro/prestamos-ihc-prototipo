@@ -16,9 +16,11 @@ las propuestas de mejora.
 - **Autorregistro del estudiante** (`#/prestamos/autorregistro`): el formulario que el
   estudiante abre desde su celular escaneando el QR del mesón.
 
-## Mejoras propuestas (curso IHC)
+## Decisiones de diseño implementadas (curso IHC)
 
-### 1. Atenciones en espera
+La numeración es la misma del informe. En el inicio cada decisión tiene su tarjeta con "Probar".
+
+### Decisión 1. Retomar los registros pendientes de verificación
 Si quien está en el mesón tiene que esperar (el código de verificación de su correo, fue a buscar
 la credencial…), el operador pulsa **Poner en espera**, elige el motivo con un toque y atiende a la
 siguiente persona. La atención (estudiante, carrito y registro a medio llenar) queda en la bandeja
@@ -30,7 +32,7 @@ bandeja sobrevive a un recargo de página.
 Código: `components/AtencionesEnEspera.jsx`, handlers en `hooks/usePrestamosActions.js`
 (sección *Atenciones en espera*), estado en `context/EscaneoContext.jsx`.
 
-### 2. Búsqueda por sinónimos
+### Decisión 2. Encontrar materiales usando nombres habituales y sinónimos
 El operador no necesita saber cómo se llama cada cosa en el inventario: buscar **bata** sugiere los
 **delantales**, **calcu** o **casio** las calculadoras, **zapatilla** el alargador. Cada sugerencia
 explica por qué aparece («bata» = delantal). Hay dos fuentes:
@@ -41,15 +43,7 @@ explica por qué aparece («bata» = delantal). Hay dos fuentes:
 
 También se puede buscar por el código del artículo (`CALC-01`).
 
-### 3. Resumen antes de devolver y movimientos del turno
-Antes de registrar una devolución se muestra el estudiante (con RUT), el objeto con su **código** y
-la fecha del préstamo, con el botón **Confirmar devolución**. Cada devolución queda en
-**Movimientos del turno** (junto a *Activos* y *Vencidos*) con un botón **Revertir**, que vuelve a
-dejar activo el préstamo a nombre del mismo estudiante y registra quién lo revirtió y a qué hora.
-
-Código: `components/ResumenDevolucion.jsx`, `ConfirmarDevolucionModal.jsx`, `MovimientosTurno.jsx`.
-
-### 4. Reportar diferencia de disponibilidad
+### Decisión 3. Reportar diferencias de disponibilidad
 Al elegir un material por nombre (en la barra del mesón o en su ficha de Stock) aparece **Reportar
 diferencia de disponibilidad**: el encargado indica cuántas unidades libres ve en el estante y, si
 quiere, un comentario. La ficha queda con el aviso **Disponibilidad por revisar**. El reporte no
@@ -58,7 +52,7 @@ cambia las existencias: desde Stock, **Revisar** permite cerrarlo o corregir con
 Código: `components/DisponibilidadPorRevisar.jsx`, API `reportarDiferenciaDisponibilidad` y
 `revisarReporteDisponibilidad`.
 
-### 5. Formularios de inventario que explican qué falta
+### Decisión 4. Validar los datos al registrar materiales
 Nuevo artículo, Ajustar stock, Nuevo insumo, Reponer y el nuevo **Agregar existencias** (elegir un
 material registrado e indicar cuánto se agrega) exigen un nombre reconocible y una cantidad válida:
 enteros ≥ 0 para el stock y > 0 para lo que se agrega. Al enviar, cada campo con problemas muestra
@@ -67,12 +61,30 @@ su mensaje al lado y lo demás se conserva. Un nombre ya registrado ofrece agreg
 Código: `components/FormularioValidado.jsx` (genérico), `FormulariosInventario.jsx`,
 `utils/validacionInventario.js`.
 
-### 6. Buscar personas y materiales en la misma barra
+### Decisión 5. Diferenciar una lista vacía de una que todavía está cargando
+Mientras se cargan los préstamos se ve **Cargando préstamos...**. Al terminar se muestran los
+registros, o **No hay préstamos activos** si no hay ninguno (o *Sin resultados para esa búsqueda* si
+se estaba filtrando). Si la conexión falla, se avisa y se ofrece **Reintentar**. En modo Original se
+ve el problema detectado en la Entrega 1: la lista dice "No hay préstamos activos" mientras todavía
+carga. La guía de esta decisión trae botones para simular una carga lenta, una lista realmente
+vacía y una falla de conexión.
+
+Código: `components/MensajeListaVacia.jsx`, simulación de red en `src/novedades/estado.js`.
+
+### Decisión 6. Buscar personas y materiales desde una misma barra
 La barra del mesón busca personas por nombre o RUT (con o sin puntos) además de materiales. Los
 resultados se agrupan en **Personas** (nombre y RUT) y **Materiales** (nombre y disponibilidad); si
 lo escrito coincide con ambos, se ven las dos secciones. ↑/↓ y Enter para elegir.
 
 Código: `components/SugerenciasBusqueda.jsx`, `personasSugeridas` en `hooks/usePrestamosPageState.js`.
+
+### Extra (no está en el informe). Resumen antes de devolver y movimientos del turno
+Antes de registrar una devolución se muestra el estudiante (con RUT), el objeto con su **código** y
+la fecha del préstamo, con el botón **Confirmar devolución**. Cada devolución queda en
+**Movimientos del turno** (junto a *Activos* y *Vencidos*) con un botón **Revertir**, que vuelve a
+dejar activo el préstamo a nombre del mismo estudiante y registra quién lo revirtió y a qué hora.
+
+Código: `components/ResumenDevolucion.jsx`, `ConfirmarDevolucionModal.jsx`, `MovimientosTurno.jsx`.
 
 ## Para quien revisa
 
@@ -80,13 +92,14 @@ La página de inicio lista las mejoras. **Probar** abre cada una con la pantalla
 guía *Prueba esto* (con enlace a la siguiente). En el encabezado del panel:
 
 - **Original / Mejoras** alterna entre la interfaz como es hoy y la con mejoras, para comparar.
-- ✦ muestra u oculta las marcas **Nuevo N** sobre cada elemento agregado (N = número de la mejora).
+- ✦ muestra u oculta las marcas **Nuevo N** sobre cada elemento agregado (N = número de la decisión).
 
 ## Agregar una mejora
 
 La vitrina (`src/novedades/`) es genérica; cada mejora se declara una sola vez:
 
-1. Agrega una entrada a `src/modules/prestamos/novedades.js` con `id`, `numero`, `titulo`,
+1. Agrega una entrada a `src/modules/prestamos/novedades.js` con `id`, `numero` (el de la decisión
+   en el informe, o `null` si es un extra), `titulo`,
    `problema`, `solucion`, `icono`, `ruta`, `pasos` y, opcionalmente, `preparar(ctx)` para dejar
    la pantalla lista (recibe el estado del panel; devuelve `false` si aún faltan datos). Con eso ya
    aparece su tarjeta en el inicio y su guía.

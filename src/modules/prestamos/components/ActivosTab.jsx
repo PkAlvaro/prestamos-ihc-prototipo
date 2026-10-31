@@ -299,6 +299,7 @@ export default function ActivosTab({ ctx, cn, SortIcon }) {
                   isLoading={isLoading}
                   loadError={loadError}
                   onRetry={loadPrestamosData}
+                  textoCarga="Cargando préstamos..."
                 >
                   {prestamosSearchQuery
                     ? 'Sin resultados para esa búsqueda'

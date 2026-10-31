@@ -3,7 +3,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { NovedadesProvider, MarcaNuevo, SoloConMejora, ControlesNovedades } from '..'
-import { actualizarEstado, novedadActiva } from '../estado'
+import { actualizarEstado, novedadActiva, simularRed } from '../estado'
+import MensajeListaVacia from '../../modules/prestamos/components/MensajeListaVacia'
 import { NOVEDADES_PRESTAMOS } from '../../modules/prestamos/novedades'
 import { prestamosApi } from '../../modules/prestamos/services/prestamosApi'
 
@@ -29,7 +30,10 @@ describe('vitrina de novedades', () => {
 
   it('la marca "Nuevo" dice a qué mejora pertenece y desaparece al apagar las marcas', () => {
     conVitrina(<MarcaNuevo novedad="busqueda-sinonimos" />)
-    expect(screen.getByText('Nuevo 2')).toHaveProperty('title', 'Mejora 2: Búsqueda por sinónimos')
+    expect(screen.getByText('Nuevo 2')).toHaveProperty(
+      'title',
+      'Decisión 2: Encontrar materiales usando nombres habituales y sinónimos'
+    )
     act(() => actualizarEstado({ marcas: false }))
     expect(screen.queryByText(/Nuevo/)).toBeNull()
   })
@@ -56,5 +60,41 @@ describe('vitrina de novedades', () => {
     expect(conMejora.length).toBeGreaterThan(0)
     act(() => actualizarEstado({ modo: 'original' }))
     expect(await prestamosApi.buscarArticulosSemantico('guardapolvo', false)).toHaveLength(0)
+  })
+
+  it('la numeración calza con las decisiones del informe (1 a 6) y lo demás es Extra', () => {
+    const numeros = NOVEDADES_PRESTAMOS.filter(n => n.numero).map(n => n.numero)
+    expect(numeros).toEqual([1, 2, 3, 4, 5, 6])
+    expect(NOVEDADES_PRESTAMOS.find(n => n.numero === 5).titulo).toBe(
+      'Diferenciar una lista vacía de una que todavía está cargando'
+    )
+    const extras = NOVEDADES_PRESTAMOS.filter(n => !n.numero)
+    expect(extras.map(n => n.id)).toEqual(['resumen-devolucion'])
+  })
+
+  it('Decisión 5: distingue cargando de vacío; en modo original se ve vacío mientras carga', () => {
+    const lista = props =>
+      conVitrina(
+        <MensajeListaVacia textoCarga="Cargando préstamos..." onRetry={() => {}} {...props}>
+          No hay préstamos activos
+        </MensajeListaVacia>
+      )
+    const { unmount } = lista({ isLoading: true })
+    expect(screen.getByRole('status').textContent).toMatch('Cargando préstamos...')
+    expect(screen.queryByText('No hay préstamos activos')).toBeNull()
+    unmount()
+    act(() => actualizarEstado({ modo: 'original' }))
+    lista({ isLoading: true })
+    expect(screen.getByText('No hay préstamos activos')).toBeTruthy()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('la simulación de red deja la lista vacía o falla, y se limpia', async () => {
+    simularRed({ vacia: true })
+    expect(await prestamosApi.listarPrestamosActivos()).toHaveLength(0)
+    simularRed({ falla: true })
+    await expect(prestamosApi.listarPrestamosActivos()).rejects.toThrow('Network Error')
+    simularRed(null)
+    expect((await prestamosApi.listarPrestamosActivos()).length).toBeGreaterThan(0)
   })
 })

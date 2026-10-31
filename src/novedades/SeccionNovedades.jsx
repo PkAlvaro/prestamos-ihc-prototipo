@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Sparkles } from 'lucide-react'
-import { useNovedades } from './NovedadesContext'
+import { useNovedades, etiquetaNovedad } from './NovedadesContext'
 import ControlesNovedades from './ControlesNovedades'
 
 /** Tarjetas del inicio: una por mejora, con el problema, la propuesta y "Probar". */
@@ -16,7 +16,8 @@ export default function SeccionNovedades() {
           id="novedades-titulo"
           className="text-xs font-bold uppercase tracking-widest text-cai-black flex items-center gap-1.5"
         >
-          <Sparkles className="w-4 h-4 text-amber-500" /> Mejoras propuestas ({catalogo.length})
+          <Sparkles className="w-4 h-4 text-amber-500" /> Decisiones de diseño (
+          {catalogo.filter(n => n.numero).length})
         </h2>
         <ControlesNovedades oscuro={false} />
       </div>
@@ -34,7 +35,7 @@ export default function SeccionNovedades() {
               className="relative flex flex-col bg-white border-2 border-cai-yellow rounded-lg p-5"
             >
               <span className="absolute -top-3 left-4 px-2 py-0.5 rounded-full bg-cai-yellow text-cai-black text-[10px] font-black uppercase tracking-wide">
-                Mejora {n.numero}
+                {etiquetaNovedad(n)}
               </span>
               <Icono className="w-6 h-6 text-mod-prestamos mb-3" />
               <h3 className="font-bold text-cai-black mb-2">{n.titulo}</h3>
