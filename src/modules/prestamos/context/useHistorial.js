@@ -1,0 +1,1 @@
+export { useHistorial } from './HistorialContext'

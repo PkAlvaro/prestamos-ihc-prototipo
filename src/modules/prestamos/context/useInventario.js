@@ -1,0 +1,1 @@
+export { useInventario } from './InventarioContext'

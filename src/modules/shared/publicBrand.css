@@ -1,0 +1,193 @@
+/**
+ * Chrome de marca para las páginas PÚBLICAS (sin sesión) del proyecto:
+ * papeleta de votación, comprobante de voto, transmisión en vivo, reserva
+ * de salas, check-in, solicitud de espacios.
+ *
+ * Escopado bajo `.public-cai` a propósito: estos tokens (#181818/#FDD407,
+ * radios suaves, DM Sans) son los del sitio público, DISTINTOS
+ * de los tokens del panel interno (--color-cai-black #0F0F0F / --color-cai-yellow
+ * #FFE000 en index.css) que siguen gobernando todo el resto de la app para el
+ * staff. Nunca tocar :root global — eso restilizaría el panel de gestión entero.
+ */
+
+.public-cai {
+  --pub-negro: #181818;
+  --pub-negro-2: #202020;
+  --pub-amarillo: #fdd407;
+  --pub-bg: #faf9f8;
+  --pub-surface: #ffffff;
+  --pub-borde: #e5e5e5;
+  --pub-texto: #181818;
+  --pub-muted: #525252;
+
+  font-family: 'DM Sans', Arial, Helvetica, sans-serif;
+  background: var(--pub-bg);
+  color: var(--pub-texto);
+}
+
+.public-cai a {
+  color: var(--pub-negro);
+}
+.public-cai a:hover {
+  color: var(--pub-negro-2);
+}
+
+/* ─── Reveal letra-por-letra del wordmark (mismo mecanismo del header del
+   sitio público) ─────────────────────────────────────────────────────────── */
+.pub-brand {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.pub-brand-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.pub-brand-wordmark {
+  display: flex;
+  align-items: baseline;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.pub-brand-uc {
+  margin-top: 0.1rem;
+  font-size: 1.1rem;
+  font-weight: 400;
+  letter-spacing: -0.08em;
+  line-height: 1;
+}
+.pub-brand-initial {
+  display: inline-block;
+}
+.pub-brand-initial-i {
+  text-transform: lowercase;
+}
+.pub-brand-reveal {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  transition: max-width 120ms ease-out;
+}
+.pub-brand:hover .pub-brand-reveal-centro {
+  max-width: 8rem;
+}
+.pub-brand:hover .pub-brand-reveal-alumnos {
+  max-width: 7.5rem;
+}
+.pub-brand:hover .pub-brand-reveal-ingenieria {
+  max-width: 8rem;
+}
+.pub-brand-reveal-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: scale(0);
+  transition:
+    transform 260ms ease-in,
+    opacity 220ms ease-in;
+}
+.pub-brand:hover .pub-brand-reveal-letter {
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    transform 300ms cubic-bezier(0.34, 1.4, 0.64, 1),
+    opacity 220ms ease-out;
+  transition-delay: calc(var(--i, 0) * 32ms);
+}
+
+/* ─── Subrayado que se vuelve fondo (footer real) ──────────────────────────── */
+.pub-u2bg {
+  position: relative;
+  display: inline-block;
+  color: var(--pub-muted);
+  text-decoration: none;
+  padding: 2px 6px;
+  transition: color 320ms ease;
+}
+.pub-u2bg::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: -2px;
+  bottom: -4px;
+  background: var(--pub-amarillo);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: -1;
+}
+.pub-u2bg:hover {
+  color: var(--pub-negro);
+}
+.pub-u2bg:hover::before {
+  transform: scaleY(1);
+}
+.pub-u2bg--amber {
+  color: var(--pub-amarillo);
+}
+
+/* ─── Microdetalles compartidos ────────────────────────────────────────────── */
+.pub-step-card {
+  transition:
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+.pub-step-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.pub-btn {
+  transition:
+    filter 150ms ease,
+    transform 120ms ease;
+  min-height: 44px;
+}
+.pub-btn:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+.pub-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.pub-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pub-field {
+  min-height: 44px;
+}
+
+.public-cai :focus-visible {
+  outline: 2px solid var(--pub-amarillo);
+  outline-offset: 3px;
+}
+
+@keyframes pub-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.pub-fade-in {
+  animation: pub-fade-in 0.4s ease forwards;
+}
+
+.pub-divider {
+  display: block;
+  width: 40px;
+  height: 4px;
+  background: var(--pub-amarillo);
+  border-radius: 999px;
+}
