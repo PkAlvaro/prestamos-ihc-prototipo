@@ -11,6 +11,7 @@ import { useHistorial } from '../context/HistorialContext'
 import { usePrestamosUI } from '../context/PrestamosUIContext'
 import { usePrestamosActions } from './usePrestamosActions'
 import { mensajeDeError } from '../utils/mensajeDeError'
+import { terminosAlternativos, explicarCoincidencia } from '../utils/sinonimos'
 
 const normalizeSearch = str => (str ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
@@ -55,7 +56,7 @@ export function usePrestamosPageState(onBack) {
     verificacion,
     codigoVerificacion,
     setCodigoVerificacion,
-    pendientesVerificacion,
+    atencionesEnEspera,
   } = useEscaneo()
 
   const {
@@ -114,8 +115,14 @@ export function usePrestamosPageState(onBack) {
     handleConfirmarVerificacion,
     handleVolverAEditarDatos,
     handleAtenderOtroMientras,
-    handleRetomarPendiente,
-    handleDescartarPendiente,
+    handleMinimizarAtencion,
+    handleRetomarAtencion,
+    handleDescartarAtencion,
+    resumenDevolucion,
+    setResumenDevolucion,
+    handleConfirmarDevolucionSimple,
+    movimientosTurno,
+    handleRevertirMovimiento,
     handleDevolver,
     handleRevertirDevolucion,
     confirmacion,
@@ -136,6 +143,7 @@ export function usePrestamosPageState(onBack) {
     confirmEliminarArticulo,
     cancelEliminarArticulo,
     handleRenombrarArticulo,
+    handleGuardarAlias,
     handleAjustarStockArticulo,
     handleIncrementarStockArticulo,
     handleCrearInsumo,
@@ -432,6 +440,9 @@ export function usePrestamosPageState(onBack) {
         ...a,
         _nombreNorm: normalizeSearch(a.nombre),
         _categoriaNorm: normalizeSearch(a.categoria),
+        _codigoNorm: normalizeSearch(a.codigo),
+        // Sinónimos y "otros nombres": "bata" encuentra los delantales
+        _alternativos: terminosAlternativos(a),
       })),
     [prestamosArticulos]
   )
@@ -440,8 +451,10 @@ export function usePrestamosPageState(onBack) {
     () =>
       new Fuse(articulosParaBuscar, {
         keys: [
-          { name: '_nombreNorm', weight: 0.8 },
-          { name: '_categoriaNorm', weight: 0.2 },
+          { name: '_nombreNorm', weight: 0.6 },
+          { name: '_categoriaNorm', weight: 0.15 },
+          { name: '_codigoNorm', weight: 0.1 },
+          { name: '_alternativos', weight: 0.15 },
         ],
         threshold: 0.4,
         ignoreLocation: true,
@@ -458,7 +471,7 @@ export function usePrestamosPageState(onBack) {
     const qNorm = normalizeSearch(smartInput)
     return fuseArticulos
       .search(qNorm)
-      .map(r => r.item)
+      .map(r => ({ ...r.item, _coincidencia: explicarCoincidencia(smartInput, r.item) }))
       .filter(a => a.stock_disponible > 0)
       .slice(0, 5)
   }, [smartInput, fuseArticulos])
@@ -648,8 +661,10 @@ export function usePrestamosPageState(onBack) {
     () =>
       new Fuse(articulosParaBuscar, {
         keys: [
-          { name: '_nombreNorm', weight: 0.8 },
-          { name: '_categoriaNorm', weight: 0.2 },
+          { name: '_nombreNorm', weight: 0.6 },
+          { name: '_categoriaNorm', weight: 0.15 },
+          { name: '_codigoNorm', weight: 0.1 },
+          { name: '_alternativos', weight: 0.15 },
         ],
         threshold: 0.4,
         ignoreLocation: true,
@@ -661,9 +676,13 @@ export function usePrestamosPageState(onBack) {
   const filteredStock = React.useMemo(() => {
     if (!stockSearchQuery) return articulosParaBuscar
     // Semántico con resultados → úsalo; vacío o null → Fuse.js como fallback
+    const conExplicacion = a => ({
+      ...a,
+      _coincidencia: explicarCoincidencia(stockSearchQuery, a),
+    })
     if (stockSemanticResults !== null && stockSemanticResults.length > 0)
-      return stockSemanticResults
-    return fuseStock.search(normalizeSearch(stockSearchQuery)).map(r => r.item)
+      return stockSemanticResults.map(conExplicacion)
+    return fuseStock.search(normalizeSearch(stockSearchQuery)).map(r => conExplicacion(r.item))
   }, [stockSearchQuery, fuseStock, articulosParaBuscar, stockSemanticResults])
 
   return {
@@ -744,6 +763,7 @@ export function usePrestamosPageState(onBack) {
     handleUpdateInsumoStock,
     handleEliminarArticulo,
     handleRenombrarArticulo,
+    handleGuardarAlias,
     handleAjustarStockArticulo,
     handleIncrementarStockArticulo,
     deleteArticuloPending,
@@ -759,9 +779,15 @@ export function usePrestamosPageState(onBack) {
     handleConfirmarVerificacion,
     handleVolverAEditarDatos,
     handleAtenderOtroMientras,
-    handleRetomarPendiente,
-    handleDescartarPendiente,
-    pendientesVerificacion,
+    handleMinimizarAtencion,
+    handleRetomarAtencion,
+    handleDescartarAtencion,
+    resumenDevolucion,
+    setResumenDevolucion,
+    handleConfirmarDevolucionSimple,
+    movimientosTurno,
+    handleRevertirMovimiento,
+    atencionesEnEspera,
     verificacion,
     codigoVerificacion,
     setCodigoVerificacion,

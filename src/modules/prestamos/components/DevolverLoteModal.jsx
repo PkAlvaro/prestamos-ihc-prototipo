@@ -138,7 +138,12 @@ export default function DevolverLoteModal({ modal, onConfirm, onClose }) {
 
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
           <div>
-            <p className="text-sm font-bold text-cai-black">{modal.estudianteNombre}</p>
+            <p className="text-sm font-bold text-cai-black">
+              {modal.estudianteNombre}
+              <span className="ml-2 text-xs font-normal text-gray-400 font-mono">
+                {prestamos[0]?.estudiante_rut}
+              </span>
+            </p>
             <ul className="mt-2 divide-y divide-gray-100 border border-cai-border rounded-xl">
               {prestamos.map(p => (
                 <li key={p.id} className="flex items-center justify-between gap-3 px-3 py-2">
@@ -147,6 +152,9 @@ export default function DevolverLoteModal({ modal, onConfirm, onClose }) {
                       {p.articulo_nombre}
                     </p>
                     <p className="text-[11px] text-gray-400">
+                      {p.articulo_codigo && (
+                        <span className="font-mono text-gray-500">{p.articulo_codigo} · </span>
+                      )}
                       Prestado {formatFechaHora(p.fecha_prestamo)}
                     </p>
                     {detalle?.[p.id] && (
@@ -245,7 +253,7 @@ export default function DevolverLoteModal({ modal, onConfirm, onClose }) {
             disabled={loading || !decisionLista}
             className="flex-1 py-2.5 rounded-xl bg-[#16A34A] hover:bg-green-700 text-white text-sm font-bold transition-colors duration-[120ms] cursor-pointer disabled:opacity-50"
           >
-            {loading ? 'Registrando…' : `Devolver ${prestamos.length}`}
+            {loading ? 'Registrando…' : `Confirmar devolución (${prestamos.length})`}
           </button>
         </div>
       </div>

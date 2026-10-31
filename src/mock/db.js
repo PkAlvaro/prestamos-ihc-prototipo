@@ -6,7 +6,7 @@ import { crearSeed, isoLocal } from './seed'
  * Nada sale del navegador.
  */
 
-const STORAGE_KEY = 'prestamos-demo-db-v1'
+const STORAGE_KEY = 'prestamos-demo-db-v2'
 
 function cargar() {
   try {
@@ -130,8 +130,16 @@ const sinTildes = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '')
 export function grupoCarrera(carrera) {
   if (!carrera) return 'Otras Carreras'
   const c = sinTildes(carrera.trim().toLowerCase())
-  const exactas = ['ing/licc', 'licd', 'ingenieria civil', 'licenciatura en ciencias de la computacion']
-  if (exactas.includes(c) || ['licc', 'ciencia de datos', 'ciencias de datos'].some(k => c.includes(k))) {
+  const exactas = [
+    'ing/licc',
+    'licd',
+    'ingenieria civil',
+    'licenciatura en ciencias de la computacion',
+  ]
+  if (
+    exactas.includes(c) ||
+    ['licc', 'ciencia de datos', 'ciencias de datos'].some(k => c.includes(k))
+  ) {
     return 'ING/LICC'
   }
   if (c.startsWith('college')) return 'College'

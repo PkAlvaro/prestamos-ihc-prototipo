@@ -8,6 +8,7 @@ import { useHistorial } from '../context/HistorialContext'
 import { usePrestamosUI } from '../context/PrestamosUIContext'
 import { mensajeDeError } from '../utils/mensajeDeError'
 import useConfirmacion from './useConfirmacion'
+import { useAuth } from '../../auth'
 
 // --- HELPERS PUROS (sin estado) ---
 
@@ -67,6 +68,7 @@ export function usePrestamosActions() {
   const inventario = useInventario()
   const historial = useHistorial()
   const ui = usePrestamosUI()
+  const { currentUser } = useAuth()
 
   const [deleteArticuloPending, setDeleteArticuloPending] = useState(null)
   const [articuloDeleteBlocked, setArticuloDeleteBlocked] = useState(false)
@@ -106,12 +108,16 @@ export function usePrestamosActions() {
         if (combosResult.status === 'fulfilled') inventario.setCombos(combosResult.value || [])
       }
 
-      if (ui.prestamosTab === 'activos') {
-        const data = await prestamosApi.listarPrestamosActivos()
-        historial.setPrestamosActivos(data || [])
-      } else if (ui.prestamosTab === 'vencidos') {
-        const data = await prestamosApi.listarPrestamosVencidos()
-        historial.setPrestamosVencidos(data || [])
+      if (ui.prestamosTab === 'activos' || ui.prestamosTab === 'vencidos') {
+        const [lista, movimientos] = await Promise.all([
+          ui.prestamosTab === 'activos'
+            ? prestamosApi.listarPrestamosActivos()
+            : prestamosApi.listarPrestamosVencidos(),
+          prestamosApi.listarMovimientosTurno(),
+        ])
+        if (ui.prestamosTab === 'activos') historial.setPrestamosActivos(lista || [])
+        else historial.setPrestamosVencidos(lista || [])
+        setMovimientosTurno(movimientos || [])
       } else if (ui.prestamosTab === 'articulos') {
         const [artsResult, vencidosResult] = await Promise.allSettled([
           prestamosApi.listarArticulos(),
@@ -560,69 +566,122 @@ export function usePrestamosActions() {
     escaneo.setCodigoVerificacion('')
   }
 
+  // --- ATENCIONES EN ESPERA ---
+  //
+  // El operario puede "minimizar" a quien está atendiendo (estudiante escaneado,
+  // artículos ya agregados o un registro a medio llenar) para atender a otra
+  // persona mientras la primera espera: el código del correo, ir a buscar la
+  // credencial, etc. Nada se pierde: queda en la bandeja hasta retomarla.
+
+  const hayDatosDeRegistro = ne => !!(ne.rut || ne.nombre || ne.email)
+
+  /** Lo que hay en pantalla ahora mismo, o null si no se está atendiendo a nadie. */
+  const atencionActual = () => {
+    const registro =
+      escaneo.showConsentModal &&
+      (escaneo.verificacion || hayDatosDeRegistro(escaneo.nuevoEstudiante))
+        ? { nuevoEstudiante: escaneo.nuevoEstudiante, verificacion: escaneo.verificacion }
+        : null
+    if (!escaneo.estudianteEscaneado && escaneo.articulosEscaneados.length === 0 && !registro) {
+      return null
+    }
+    return {
+      id: `atencion-${Date.now()}`,
+      desde: Date.now(),
+      estudiante: escaneo.estudianteEscaneado,
+      articulos: escaneo.articulosEscaneados,
+      registro,
+    }
+  }
+
+  const limpiarAtencion = () => {
+    escaneo.setEstudianteEscaneado(null)
+    escaneo.setArticuloEscaneado(null)
+    escaneo.setArticulosEscaneados([])
+    escaneo.setSmartInput('')
+    resetConsentForm()
+  }
+
+  const nombreAtencion = a =>
+    a.estudiante?.nombre ||
+    a.registro?.nuevoEstudiante.nombre ||
+    a.registro?.nuevoEstudiante.rut ||
+    'Registro sin nombre'
+
+  const handleMinimizarAtencion = motivo => {
+    const actual = atencionActual()
+    if (!actual) return
+    escaneo.setAtencionesEnEspera(prev => [...prev, { ...actual, motivo }])
+    limpiarAtencion()
+    toast.success(`${nombreAtencion(actual)} quedó en espera. Puedes atender a otra persona.`)
+  }
+
+  /** Atajo desde el paso del código de verificación. */
+  const handleAtenderOtroMientras = () => handleMinimizarAtencion('Esperando código del correo')
+
   /**
-   * Deja la verificación actual "en espera" (el código sigue vigente en el
-   * servidor, solo se saca de pantalla) para poder atender a otra persona
-   * mientras el primer estudiante espera que le llegue el correo. Pedido
-   * recurrente del mesón: antes había que elegir entre esperar ahí parado o
-   * cancelar y perder el código ya enviado.
+   * Vuelve a poner en pantalla una atención en espera. Si había otra en curso,
+   * esa pasa a la bandeja en su lugar (nunca se pierde una por retomar otra).
    */
-  const handleAtenderOtroMientras = () => {
-    if (!escaneo.verificacion) return
-    escaneo.setPendientesVerificacion(prev => [
-      ...prev,
-      { ...escaneo.verificacion, nuevoEstudiante: escaneo.nuevoEstudiante },
+  const handleRetomarAtencion = async id => {
+    const atencion = escaneo.atencionesEnEspera.find(a => a.id === id)
+    if (!atencion) return
+    const actual = atencionActual()
+    escaneo.setAtencionesEnEspera(prev => [
+      ...prev.filter(a => a.id !== id),
+      ...(actual ? [{ ...actual, motivo: 'En pausa (se retomó a otra persona)' }] : []),
     ])
-    escaneo.setShowConsentModal(false)
-    escaneo.setNuevoEstudiante({
-      rut: '',
-      nombre: '',
-      email: '',
-      carrera: '',
-      es_intercambio: false,
-    })
-    escaneo.setRutNormalizado('')
-    escaneo.setRutError('')
-    escaneo.setVerificacion(null)
-    escaneo.setCodigoVerificacion('')
-    toast.success('Registro en espera. Puedes atender a otra persona mientras llega el código.')
-  }
+    limpiarAtencion()
 
-  /**
-   * Vuelve a mostrar una verificación que se había dejado en espera. Si había
-   * otra activa sin confirmar en pantalla, esa pasa a la espera en su lugar
-   * (nunca se pierde una por retomar otra).
-   */
-  const handleRetomarPendiente = pendienteId => {
-    const pendiente = escaneo.pendientesVerificacion.find(p => p.verificacionId === pendienteId)
-    if (!pendiente) return
-
-    escaneo.setPendientesVerificacion(prev => {
-      const resto = prev.filter(p => p.verificacionId !== pendienteId)
-      if (escaneo.verificacion) {
-        return [...resto, { ...escaneo.verificacion, nuevoEstudiante: escaneo.nuevoEstudiante }]
+    escaneo.setEstudianteEscaneado(atencion.estudiante)
+    escaneo.setArticulosEscaneados(atencion.articulos)
+    escaneo.setArticuloEscaneado(atencion.articulos.at(-1) ?? null)
+    if (atencion.registro) {
+      try {
+        const terminos = await prestamosApi.obtenerTerminos()
+        escaneo.setTerminosTexto(terminos.texto)
+      } catch {
+        // Sin términos visibles igual se puede confirmar el código
       }
-      return resto
+      escaneo.setNuevoEstudiante(atencion.registro.nuevoEstudiante)
+      escaneo.setVerificacion(atencion.registro.verificacion)
+      escaneo.setCodigoVerificacion('')
+      escaneo.setShowConsentModal(true)
+    }
+
+    // El stock pudo cambiar mientras la persona esperaba
+    const sinStock = atencion.articulos.filter(item => {
+      const art = inventario.prestamosArticulos.find(a => a.id === item.articulo_id)
+      return art && art.stock_disponible < item.cantidad
     })
-    escaneo.setNuevoEstudiante(pendiente.nuevoEstudiante)
-    escaneo.setVerificacion({
-      verificacionId: pendiente.verificacionId,
-      emailEnmascarado: pendiente.emailEnmascarado,
-      expiraEn: pendiente.expiraEn,
-    })
-    escaneo.setCodigoVerificacion('')
-    escaneo.setShowConsentModal(true)
+    if (sinStock.length) {
+      toast.warning(
+        `Mientras esperaba se prestó lo último de: ${sinStock.map(i => i.nombre).join(', ')}. Revisa el carrito.`
+      )
+    }
+    if (actual) toast.success(`${nombreAtencion(actual)} pasó a la bandeja de espera.`)
   }
 
-  /** Descarta una espera sin retomarla (ej. la persona se fue del mesón). El
-   * código simplemente expira solo en el servidor si nadie lo confirma. */
-  const handleDescartarPendiente = pendienteId => {
-    escaneo.setPendientesVerificacion(prev => prev.filter(p => p.verificacionId !== pendienteId))
+  const handleDescartarAtencion = async id => {
+    const atencion = escaneo.atencionesEnEspera.find(a => a.id === id)
+    if (!atencion) return
+    const unidades = atencion.articulos.reduce((n, a) => n + a.cantidad, 0)
+    const acepta = await confirmar({
+      titulo: 'Descartar atención en espera',
+      mensaje: `Se quitará a ${nombreAtencion(atencion)} de la espera${unidades ? ` junto con ${unidades} artículo${unidades !== 1 ? 's' : ''} del carrito` : ''}. No se registra ningún préstamo.`,
+      confirmar: 'Descartar',
+      tono: 'advertencia',
+    })
+    if (!acepta) return
+    escaneo.setAtencionesEnEspera(prev => prev.filter(a => a.id !== id))
   }
 
   // --- ACCIONES DE HISTORIAL ---
 
   const [devolucionModal, setDevolucionModal] = useState(null) // { prestamo, multa } | null
+  // Resumen previo de una devolución sin multa: estudiante, objeto, código y fecha
+  const [resumenDevolucion, setResumenDevolucion] = useState(null) // prestamo | null
+  const [movimientosTurno, setMovimientosTurno] = useState([])
 
   const handleDevolver = async prestamo => {
     try {
@@ -630,23 +689,34 @@ export function usePrestamosActions() {
       if (preview.multa > 0 || prestamo.cobro_arriendo_pendiente) {
         setDevolucionModal({ prestamo, multa: preview.multa })
       } else {
-        const acepta = await confirmar({
-          titulo: 'Registrar devolución',
-          mensaje: `${prestamo.articulo_nombre} de ${prestamo.estudiante_nombre}. No tiene multa ni cobros pendientes.`,
-          confirmar: 'Devolver',
-        })
-        if (!acepta) return
-        const result = await prestamosApi.devolverPrestamo(prestamo.id, {
-          monto_cobrado: 0,
-          tipo_pago: 'SIN_MULTA',
-        })
-        toast.success(result.mensaje)
-        await loadPrestamosData()
+        setResumenDevolucion(prestamo)
       }
     } catch (e) {
       toast.error('Error al devolver: ' + mensajeDeError(e))
     }
   }
+
+  const handleConfirmarDevolucionSimple = async () => {
+    if (!resumenDevolucion) return
+    try {
+      const result = await prestamosApi.devolverPrestamo(resumenDevolucion.id, {
+        monto_cobrado: 0,
+        tipo_pago: 'SIN_MULTA',
+      })
+      toast.success(
+        `${result.mensaje}. Si fue un error, puedes revertirla en Movimientos del turno.`
+      )
+      setResumenDevolucion(null)
+      await loadPrestamosData()
+    } catch (e) {
+      toast.error('Error al devolver: ' + mensajeDeError(e))
+    }
+  }
+
+  /** Revierte una devolución desde "Movimientos del turno": el préstamo vuelve a quedar
+   * activo a nombre del mismo estudiante y queda registrado quién lo revirtió. */
+  const handleRevertirMovimiento = movimiento =>
+    handleRevertirDevolucion({ ...movimiento, id: movimiento.prestamo_id })
 
   // --- DEVOLVER TODO EL LOTE DE UNA PERSONA ---
 
@@ -678,9 +748,9 @@ export function usePrestamosActions() {
   // cobró dinero, el servidor pide confirmar el reintegro para que Contabilidad cuadre.
   const handleRevertirDevolucion = async prestamo => {
     const abrir = await confirmar({
-      titulo: 'Reabrir préstamo',
-      mensaje: `${prestamo.articulo_nombre} de ${prestamo.estudiante_nombre} volverá a figurar como pendiente de devolución.`,
-      confirmar: 'Reabrir',
+      titulo: 'Revertir devolución',
+      mensaje: `${prestamo.articulo_nombre} de ${prestamo.estudiante_nombre} volverá a figurar como préstamo activo del mismo estudiante. Quedará registrado que lo revertiste tú (${currentUser?.full_name ?? 'operador'}).`,
+      confirmar: 'Revertir devolución',
     })
     if (!abrir) return
     try {
@@ -700,8 +770,8 @@ export function usePrestamosActions() {
       }
       toast.success(
         resultado.monto_a_reintegrar > 0
-          ? `Préstamo reabierto. Reintegra $${resultado.monto_a_reintegrar.toLocaleString('es-CL')} al estudiante para que la contabilidad cuadre.`
-          : 'Préstamo reabierto. Puedes devolverlo de nuevo, por ejemplo condonando la multa.'
+          ? `Devolución revertida. Reintegra $${resultado.monto_a_reintegrar.toLocaleString('es-CL')} al estudiante para que la contabilidad cuadre.`
+          : `Devolución revertida: ${prestamo.articulo_nombre} vuelve a estar prestado a ${prestamo.estudiante_nombre}.`
       )
       await loadPrestamosData()
     } catch (e) {
@@ -824,6 +894,18 @@ export function usePrestamosActions() {
       toast.error('Error al renombrar artículo: ' + mensajeDeError(e))
     } finally {
       ui.setIsLoading(false)
+    }
+  }
+
+  const handleGuardarAlias = async (articulo, alias) => {
+    try {
+      await prestamosApi.actualizarArticulo(articulo.id, { alias })
+      toast.success(`Otros nombres de ${articulo.nombre} guardados`)
+      await loadPrestamosData()
+      return true
+    } catch (e) {
+      toast.error('Error al guardar: ' + mensajeDeError(e))
+      return false
     }
   }
 
@@ -951,10 +1033,16 @@ export function usePrestamosActions() {
     handleConfirmarVerificacion,
     handleVolverAEditarDatos,
     handleAtenderOtroMientras,
-    handleRetomarPendiente,
-    handleDescartarPendiente,
+    handleMinimizarAtencion,
+    handleRetomarAtencion,
+    handleDescartarAtencion,
     // Historial
     handleDevolver,
+    resumenDevolucion,
+    setResumenDevolucion,
+    handleConfirmarDevolucionSimple,
+    movimientosTurno,
+    handleRevertirMovimiento,
     handleRevertirDevolucion,
     confirmacion,
     resolverConfirmacion,
@@ -975,6 +1063,7 @@ export function usePrestamosActions() {
     confirmEliminarArticulo,
     cancelEliminarArticulo,
     handleRenombrarArticulo,
+    handleGuardarAlias,
     handleAjustarStockArticulo,
     handleIncrementarStockArticulo,
     handleCrearInsumo,

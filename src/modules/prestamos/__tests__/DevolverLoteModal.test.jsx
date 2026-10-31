@@ -64,7 +64,7 @@ describe('DevolverLoteModal', () => {
     const { onConfirm } = renderModal([prestamo(1), prestamo(2)])
 
     await waitFor(() => expect(screen.queryByText('Calculando multas…')).toBeNull())
-    fireEvent.click(screen.getByText('Devolver 2'))
+    fireEvent.click(screen.getByText('Confirmar devolución (2)'))
 
     await waitFor(() =>
       expect(onConfirm).toHaveBeenCalledWith({
@@ -101,7 +101,7 @@ describe('DevolverLoteModal', () => {
     servidorCalcula({ 1: 500, 2: 1000 })
     const { onConfirm } = renderModal([prestamo(1), prestamo(2)])
     await waitFor(() => expect(screen.getByText(/Multas: \$1\.500/)).toBeTruthy())
-    const boton = screen.getByText('Devolver 2').closest('button')
+    const boton = screen.getByText('Confirmar devolución (2)').closest('button')
 
     expect(boton.disabled).toBe(true)
 
@@ -119,7 +119,7 @@ describe('DevolverLoteModal', () => {
     await waitFor(() => expect(screen.getByText(/Multas: \$500/)).toBeTruthy())
 
     fireEvent.click(screen.getByText('Condonar'))
-    fireEvent.click(screen.getByText('Devolver 2'))
+    fireEvent.click(screen.getByText('Confirmar devolución (2)'))
 
     await waitFor(() => expect(screen.getByText(/justificación es obligatoria/)).toBeTruthy())
     expect(onConfirm).not.toHaveBeenCalled()

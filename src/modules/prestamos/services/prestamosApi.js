@@ -16,6 +16,8 @@ import {
   MULTA_MAXIMA,
 } from '../../../mock/db'
 import { CARRERAS } from '../constants'
+import { terminosAlternativos } from '../utils/sinonimos'
+import { PREFIJOS_CODIGO } from '../../../mock/seed'
 
 /**
  * Servicio de API del módulo de Préstamos — VERSIÓN PROTOTIPO.
@@ -83,6 +85,7 @@ function prestamoConDetalles(p) {
     estado: p.estado,
     comentario: p.comentario,
     articulo_nombre: art.nombre,
+    articulo_codigo: art.codigo,
     estudiante_nombre: est.nombre,
     estudiante_rut: est.rut,
     estudiante_email: est.email,
@@ -129,11 +132,14 @@ function evaluarCobro(estudiante, articulos) {
     estudiante_nombre: estudiante.nombre,
   }
   if (!carrera) return { ...base, motivo: 'El estudiante no tiene carrera registrada' }
-  if (carreraExenta(carrera)) return { ...base, motivo: `${carrera} esta exenta del cobro de arriendo` }
+  if (carreraExenta(carrera))
+    return { ...base, motivo: `${carrera} esta exenta del cobro de arriendo` }
   const tarifas = db.tarifas.filter(t => t.activa)
   const coincidencias = {}
   for (const art of articulos) {
-    const tarifa = tarifas.find(t => t.categoria.toLowerCase() === (art.categoria || '').toLowerCase())
+    const tarifa = tarifas.find(
+      t => t.categoria.toLowerCase() === (art.categoria || '').toLowerCase()
+    )
     if (tarifa) coincidencias[tarifa.categoria] = tarifa
   }
   const categorias = Object.keys(coincidencias).sort()
@@ -171,7 +177,10 @@ function cerrarPrestamo(p, { multa, tipo_pago, monto_cobrado, comentario, cobro_
     const cobro = cobroArriendoPorId(p.cobro_arriendo_id)
     if (cobro?.tipo_pago === 'PENDIENTE') {
       if (!cobro_arriendo) {
-        throw [400, `Este prestamo tiene un arriendo pendiente ($${cobro.monto_calculado}) que debe resolverse al devolver.`]
+        throw [
+          400,
+          `Este prestamo tiene un arriendo pendiente ($${cobro.monto_calculado}) que debe resolverse al devolver.`,
+        ]
       }
       cobro.tipo_pago = cobro_arriendo.tipo_pago
       cobro.monto_cobrado = cobro_arriendo.monto_cobrado ?? 0
@@ -195,7 +204,19 @@ function cerrarPrestamo(p, { multa, tipo_pago, monto_cobrado, comentario, cobro_
   })
   const art = articuloPorId(p.articulo_id)
   if (art) recalcularStock(art)
+  db.movimientos.push({
+    id: siguienteId(db.movimientos),
+    tipo: 'DEVOLUCION',
+    prestamo_id: p.id,
+    fecha: p.fecha_devolucion,
+    registrado_por: RESPONSABLE.nombre,
+    multa,
+    revertido_por: null,
+    revertido_en: null,
+  })
 }
+
+const esDeHoy = iso => !!iso && iso.slice(0, 10) === ahoraIso().slice(0, 10)
 
 /** Ejecuta una mutación; los `throw [status, detail]` se convierten en error tipo Axios. */
 function mutar(fn) {
@@ -220,7 +241,15 @@ export const prestamosApi = {
 
   listarEstudiantes: async (params = {}) =>
     leer(() => {
-      const { q, carrera, limit = 25, offset = 0, sort_by = 'nombre', sort_dir = 'asc', solo_con_multa } = params
+      const {
+        q,
+        carrera,
+        limit = 25,
+        offset = 0,
+        sort_by = 'nombre',
+        sort_dir = 'asc',
+        solo_con_multa,
+      } = params
       let items = db.estudiantes
       if (q) {
         const t = q.toLowerCase()
@@ -251,7 +280,10 @@ export const prestamosApi = {
         throw [400, 'El estudiante tiene préstamos sin devolver']
       }
       if (suyos.length && !forzoso) {
-        throw [409, 'El estudiante tiene historial de préstamos. Confirma el borrado forzoso para eliminarlo junto a su historial.']
+        throw [
+          409,
+          'El estudiante tiene historial de préstamos. Confirma el borrado forzoso para eliminarlo junto a su historial.',
+        ]
       }
       const ids = new Set(suyos.map(p => p.id))
       db.prestamos = db.prestamos.filter(p => !ids.has(p.id))
@@ -306,7 +338,8 @@ export const prestamosApi = {
     mutar(() => {
       const data = db.verificaciones[verificacion_id]
       if (!data) throw [400, 'La verificación expiró. Vuelve a solicitar el código.']
-      if (String(codigo).trim() !== '123456') throw [400, 'Código incorrecto (en el prototipo es 123456)']
+      if (String(codigo).trim() !== '123456')
+        throw [400, 'Código incorrecto (en el prototipo es 123456)']
       delete db.verificaciones[verificacion_id]
       let est = estudiantePorRut(data.rut)
       const campos = {
@@ -336,8 +369,12 @@ export const prestamosApi = {
     mutar(() => {
       if (!data.nombre?.trim()) throw [400, 'El nombre es obligatorio']
       const stock = Number(data.stock_total) || 1
+      const prefijo = PREFIJOS_CODIGO[data.categoria] || 'ART'
+      const correlativo = db.articulos.filter(a => a.codigo?.startsWith(`${prefijo}-`)).length + 1
       const art = {
         id: siguienteId(db.articulos),
+        codigo: `${prefijo}-${String(correlativo).padStart(2, '0')}`,
+        alias: data.alias || [],
         nombre: data.nombre.trim(),
         categoria: data.categoria || null,
         descripcion: data.descripcion || null,
@@ -366,7 +403,8 @@ export const prestamosApi = {
       const art = articuloPorId(id)
       if (!art) throw [404, 'Articulo no encontrado']
       const suyos = db.prestamos.filter(p => p.articulo_id === art.id)
-      if (suyos.some(p => p.estado !== 'DEVUELTO')) throw [400, 'El artículo tiene unidades prestadas']
+      if (suyos.some(p => p.estado !== 'DEVUELTO'))
+        throw [400, 'El artículo tiene unidades prestadas']
       if (suyos.length && !forzoso) throw [409, 'El artículo tiene historial de préstamos']
       const ids = new Set(suyos.map(p => p.id))
       db.prestamos = db.prestamos.filter(p => !ids.has(p.id))
@@ -376,24 +414,36 @@ export const prestamosApi = {
       return null
     }),
 
-  /** La API real usa búsqueda semántica; aquí basta una búsqueda difusa. */
+  /** La API real usa búsqueda semántica; aquí, búsqueda difusa más sinónimos y alias. */
   buscarArticulosSemantico: async (query, soloDisponibles = true, topK = 10) =>
     leer(() => {
-      const base = soloDisponibles ? db.articulos.filter(a => a.stock_disponible > 0) : db.articulos
-      const fuse = new Fuse(base, { keys: ['nombre', 'categoria', 'descripcion'], threshold: 0.4 })
-      return fuse.search(query).slice(0, topK).map(r => r.item)
+      const base = (
+        soloDisponibles ? db.articulos.filter(a => a.stock_disponible > 0) : db.articulos
+      ).map(a => ({ ...a, _alternativos: terminosAlternativos(a) }))
+      const fuse = new Fuse(base, {
+        keys: ['nombre', 'codigo', 'categoria', 'descripcion', '_alternativos'],
+        threshold: 0.3,
+        ignoreLocation: true,
+      })
+      return fuse
+        .search(query)
+        .slice(0, topK)
+        .map(({ item: { _alternativos, ...a } }) => a)
     }),
 
   // --- PRÉSTAMOS ---
 
   registrarPrestamo: async ({ articulo_id, estudiante_rut }) =>
-    prestamosApi.registrarPrestamoLote({ estudiante_rut, articulos: [{ articulo_id, cantidad: 1 }] })
+    prestamosApi
+      .registrarPrestamoLote({ estudiante_rut, articulos: [{ articulo_id, cantidad: 1 }] })
       .then(r => r.prestamos[0]),
 
   evaluarCobroArriendo: async ({ estudiante_rut, articulos }) => {
     const est = estudiantePorRut(estudiante_rut)
     if (!est) return fallar(404, 'Estudiante no encontrado')
-    return leer(() => evaluarCobro(est, articulos.map(a => articuloPorId(a.articulo_id)).filter(Boolean)))
+    return leer(() =>
+      evaluarCobro(est, articulos.map(a => articuloPorId(a.articulo_id)).filter(Boolean))
+    )
   },
 
   registrarPrestamoLote: async ({ estudiante_rut, articulos, cobro = null }) =>
@@ -404,9 +454,13 @@ export const prestamosApi = {
       const arts = articulos.map(i => [articuloPorId(i.articulo_id), i.cantidad || 1])
       for (const [art, cantidad] of arts) {
         if (!art) throw [404, 'Articulo no encontrado']
-        if (art.stock_disponible < cantidad) throw [400, `No hay stock suficiente de "${art.nombre}"`]
+        if (art.stock_disponible < cantidad)
+          throw [400, `No hay stock suficiente de "${art.nombre}"`]
       }
-      const evaluacion = evaluarCobro(est, arts.map(([a]) => a))
+      const evaluacion = evaluarCobro(
+        est,
+        arts.map(([a]) => a)
+      )
       let cobroRow = null
       if (evaluacion.aplica) {
         if (!cobro) throw [400, 'Esta transacción requiere registrar el cobro de arriendo']
@@ -523,7 +577,9 @@ export const prestamosApi = {
   listarCarrerasArriendo: async () =>
     leer(() => {
       const nombres = new Set([
-        ...CARRERAS.filter(c => !['Sin Especificar', 'Magíster', 'Doctorado Sociología'].includes(c)),
+        ...CARRERAS.filter(
+          c => !['Sin Especificar', 'Magíster', 'Doctorado Sociología'].includes(c)
+        ),
         ...db.estudiantes.map(e => e.carrera).filter(Boolean),
       ])
       return [...nombres].sort().map(carrera => ({
@@ -617,12 +673,21 @@ export const prestamosApi = {
       }
     }),
 
-  devolverLote: async ({ prestamo_ids, tipo_pago_multa, comentario_multa, tipo_pago_arriendo, comentario_arriendo }) =>
+  devolverLote: async ({
+    prestamo_ids,
+    tipo_pago_multa,
+    comentario_multa,
+    tipo_pago_arriendo,
+    comentario_arriendo,
+  }) =>
     mutar(() => {
       const prestamos = [...new Set(prestamo_ids)].map(prestamoPorId)
       if (prestamos.some(p => !p)) throw [404, 'Prestamo no encontrado']
-      if (prestamos.some(p => p.estado === 'DEVUELTO')) throw [400, 'Alguno de los préstamos ya fue devuelto']
-      const asignadas = Object.fromEntries(asignarMultasLote(prestamos).map(i => [i.prestamo_id, i.multa_cobrable]))
+      if (prestamos.some(p => p.estado === 'DEVUELTO'))
+        throw [400, 'Alguno de los préstamos ya fue devuelto']
+      const asignadas = Object.fromEntries(
+        asignarMultasLote(prestamos).map(i => [i.prestamo_id, i.multa_cobrable])
+      )
       if (Object.values(asignadas).some(Boolean) && !tipo_pago_multa) {
         throw [400, 'Elige como se resuelve la multa de este lote']
       }
@@ -630,9 +695,11 @@ export const prestamosApi = {
         throw [400, 'La justificacion es obligatoria al condonar la multa']
       }
       const hayArriendo = prestamos.some(
-        p => p.cobro_arriendo_id && cobroArriendoPorId(p.cobro_arriendo_id)?.tipo_pago === 'PENDIENTE'
+        p =>
+          p.cobro_arriendo_id && cobroArriendoPorId(p.cobro_arriendo_id)?.tipo_pago === 'PENDIENTE'
       )
-      if (hayArriendo && !tipo_pago_arriendo) throw [400, 'Elige como se resuelve el arriendo pendiente']
+      if (hayArriendo && !tipo_pago_arriendo)
+        throw [400, 'Elige como se resuelve el arriendo pendiente']
       if (tipo_pago_arriendo === 'CONDONADO' && !(comentario_arriendo || '').trim()) {
         throw [400, 'La justificacion es obligatoria al condonar el arriendo']
       }
@@ -680,11 +747,60 @@ export const prestamosApi = {
       p.fecha_devolucion = null
       p.multa_calculada = 0
       p.estado = estadoPrestamo(p)
-      const nota = `Devolución revertida por ${RESPONSABLE.email}${reintegro ? `; se debían reintegrar $${reintegro} cobrados` : ''}`
+      const ahora = ahoraIso()
+      const movimiento = [...db.movimientos]
+        .reverse()
+        .find(m => m.prestamo_id === p.id && m.tipo === 'DEVOLUCION' && !m.revertido_por)
+      if (movimiento) {
+        movimiento.revertido_por = RESPONSABLE.nombre
+        movimiento.revertido_en = ahora
+      } else {
+        // Devolución de otro turno (p. ej. reabierta desde Historial): queda igual registrada
+        db.movimientos.push({
+          id: siguienteId(db.movimientos),
+          tipo: 'REVERSION',
+          prestamo_id: p.id,
+          fecha: ahora,
+          registrado_por: RESPONSABLE.nombre,
+          multa: 0,
+          revertido_por: RESPONSABLE.nombre,
+          revertido_en: ahora,
+        })
+      }
+      const nota = `Devolución revertida por ${RESPONSABLE.nombre}${reintegro ? `; se debían reintegrar $${reintegro} cobrados` : ''}`
       p.comentario = p.comentario ? `${p.comentario}\n${nota}` : nota
       if (art) recalcularStock(art)
       return { prestamo_id: p.id, estado: p.estado, monto_a_reintegrar: reintegro }
     }),
+
+  /**
+   * Devoluciones (y reversiones) registradas hoy, la más reciente primero. Es la
+   * lista "Movimientos del turno": permite deshacer una devolución hecha por error.
+   */
+  listarMovimientosTurno: async () =>
+    leer(() =>
+      db.movimientos
+        .filter(m => esDeHoy(m.fecha) || esDeHoy(m.revertido_en))
+        .sort(
+          (a, b) =>
+            (b.revertido_en || b.fecha).localeCompare(a.revertido_en || a.fecha) || b.id - a.id
+        )
+        .map(m => {
+          const p = prestamoPorId(m.prestamo_id)
+          if (!p) return null
+          const det = prestamoConDetalles(p)
+          return {
+            ...m,
+            articulo_nombre: det.articulo_nombre,
+            articulo_codigo: det.articulo_codigo,
+            estudiante_nombre: det.estudiante_nombre,
+            estudiante_rut: det.estudiante_rut,
+            fecha_prestamo: det.fecha_prestamo,
+            estado_actual: det.estado,
+          }
+        })
+        .filter(Boolean)
+    ),
 
   // --- CONTABILIDAD ---
 
@@ -726,10 +842,18 @@ export const prestamosApi = {
         })
       const suma = (lista, f) => lista.reduce((s, x) => s + f(x), 0)
       const total_recaudado = suma(pagos, p => p.monto_cobrado)
-      const total_condonado = suma(pagos, p => (p.tipo_pago === 'PENDIENTE' ? 0 : p.multa_calculada - p.monto_cobrado))
+      const total_condonado = suma(pagos, p =>
+        p.tipo_pago === 'PENDIENTE' ? 0 : p.multa_calculada - p.monto_cobrado
+      )
       const total_pendiente =
-        suma(pagos.filter(p => p.tipo_pago === 'PENDIENTE'), p => p.multa_calculada) +
-        suma(db.prestamos.filter(p => p.estado !== 'DEVUELTO'), p => calcularMulta(p.fecha_prestamo))
+        suma(
+          pagos.filter(p => p.tipo_pago === 'PENDIENTE'),
+          p => p.multa_calculada
+        ) +
+        suma(
+          db.prestamos.filter(p => p.estado !== 'DEVUELTO'),
+          p => calcularMulta(p.fecha_prestamo)
+        )
       const arriendos_recaudado = suma(db.cobrosArriendo, c => c.monto_cobrado)
       return {
         total_recaudado,
@@ -744,7 +868,10 @@ export const prestamosApi = {
           db.cobrosArriendo.filter(c => c.tipo_pago === 'CONDONADO' || c.tipo_pago === 'PARCIAL'),
           c => c.monto_calculado - c.monto_cobrado
         ),
-        arriendos_pendiente: suma(db.cobrosArriendo.filter(c => c.tipo_pago === 'PENDIENTE'), c => c.monto_calculado),
+        arriendos_pendiente: suma(
+          db.cobrosArriendo.filter(c => c.tipo_pago === 'PENDIENTE'),
+          c => c.monto_calculado
+        ),
         arriendos_count: db.cobrosArriendo.length,
         cobros_arriendo: arriendos,
         total_recaudado_general: total_recaudado + arriendos_recaudado,
@@ -775,7 +902,9 @@ export const prestamosApi = {
       if (q) {
         const t = q.toLowerCase()
         items = items.filter(p =>
-          [p.articulo_nombre, p.estudiante_nombre, p.estudiante_rut].some(v => (v || '').toLowerCase().includes(t))
+          [p.articulo_nombre, p.estudiante_nombre, p.estudiante_rut].some(v =>
+            (v || '').toLowerCase().includes(t)
+          )
         )
       }
       return { items: items.slice(offset, offset + limit), total: items.length, limit, offset }
@@ -874,9 +1003,17 @@ export const prestamosApi = {
         const ps = prestamosDeGrupo(grupo, fechaInicio, fechaFin)
         const conMulta = ps.filter(p => multaDe(p) > 0)
         const vencidos = ps.filter(p => p.estado === 'VENCIDO')
-        const activas = suma(ps.filter(p => p.estado !== 'DEVUELTO'), multaDe)
-        const historicas = suma(ps.filter(p => p.estado === 'DEVUELTO'), multaDe)
-        const perdidos = ps.filter(p => p.estado === 'VENCIDO' && calcularMulta(p.fecha_prestamo) >= MULTA_MAXIMA)
+        const activas = suma(
+          ps.filter(p => p.estado !== 'DEVUELTO'),
+          multaDe
+        )
+        const historicas = suma(
+          ps.filter(p => p.estado === 'DEVUELTO'),
+          multaDe
+        )
+        const perdidos = ps.filter(
+          p => p.estado === 'VENCIDO' && calcularMulta(p.fecha_prestamo) >= MULTA_MAXIMA
+        )
         return {
           grupo,
           total_prestamos: ps.length,
@@ -928,7 +1065,11 @@ export const prestamosApi = {
           const todos = Object.values(grupos).flat()
           return {
             articulo_nombre,
-            grupos: Object.entries(grupos).map(([grupo, xs]) => ({ grupo, promedio_dias: prom(xs), n: xs.length })),
+            grupos: Object.entries(grupos).map(([grupo, xs]) => ({
+              grupo,
+              promedio_dias: prom(xs),
+              n: xs.length,
+            })),
             promedio_global: prom(todos),
             n_total: todos.length,
           }
@@ -955,7 +1096,9 @@ export const prestamosApi = {
             _grupo: grupoCarrera(est.carrera),
           }
         })
-        .filter(m => (!grupo || m._grupo === grupo) && (minMulta == null || m.multa_calculada >= minMulta))
+        .filter(
+          m => (!grupo || m._grupo === grupo) && (minMulta == null || m.multa_calculada >= minMulta)
+        )
         .map(({ _grupo, ...m }) => m)
         .sort((a, b) => b.multa_calculada - a.multa_calculada)
     ),
@@ -964,7 +1107,9 @@ export const prestamosApi = {
 
   notificarVencidos: async (ids = null) =>
     mutar(() => {
-      const vencidos = db.prestamos.filter(p => p.estado === 'VENCIDO' && (!ids || ids.includes(p.id)))
+      const vencidos = db.prestamos.filter(
+        p => p.estado === 'VENCIDO' && (!ids || ids.includes(p.id))
+      )
       let enviados = 0
       let sin_email = 0
       for (const p of vencidos) {
@@ -1052,7 +1197,9 @@ export const prestamosApi = {
   refreshHistorialStatus: async () =>
     mutar(() => {
       let actualizados = 0
-      for (const c of db.correos.filter(x => x.last_event === 'queued' || x.last_event === 'sent')) {
+      for (const c of db.correos.filter(
+        x => x.last_event === 'queued' || x.last_event === 'sent'
+      )) {
         c.last_event = 'delivered'
         actualizados++
       }
@@ -1068,7 +1215,9 @@ const multaDe = p => (p.estado === 'DEVUELTO' ? p.multa_calculada : calcularMult
 
 function prestamosDeGrupo(grupo, inicio, fin) {
   return db.prestamos.filter(
-    p => enRango(p.fecha_prestamo, inicio, fin) && grupoCarrera(estudiantePorId(p.estudiante_id)?.carrera) === grupo
+    p =>
+      enRango(p.fecha_prestamo, inicio, fin) &&
+      grupoCarrera(estudiantePorId(p.estudiante_id)?.carrera) === grupo
   )
 }
 
@@ -1077,7 +1226,10 @@ function registrarCorreo(recipient, email_type, prestamo_id) {
     id: siguienteId(db.correos),
     resend_id: `demo-${Date.now().toString(36)}`,
     recipient,
-    subject: email_type === 'aviso_automatico' ? 'Tienes un préstamo vencido' : 'Recordatorio de devolución',
+    subject:
+      email_type === 'aviso_automatico'
+        ? 'Tienes un préstamo vencido'
+        : 'Recordatorio de devolución',
     email_type,
     prestamo_id,
     sent_at: ahoraIso(),

@@ -159,6 +159,8 @@ export default function PrestamosPage({ onBack }) {
                 <SidebarItem
                   icon={Zap}
                   label="Nuevo préstamo"
+                  badge={ctx.atencionesEnEspera.length}
+                  badgeTitle={`${ctx.atencionesEnEspera.length} en espera`}
                   active={prestamosTab === 'escaneo'}
                   onClick={() => navigate('escaneo')}
                   collapsed={collapsed}

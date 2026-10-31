@@ -1,5 +1,6 @@
 import React from 'react'
 import MensajeListaVacia from './MensajeListaVacia'
+import MovimientosTurno from './MovimientosTurno'
 import { formatFechaHora, haceCuanto } from '../utils/fechas'
 import {
   Package,
@@ -238,6 +239,8 @@ export default function ActivosTab({ ctx, cn, SortIcon }) {
     prestamosSort,
     handlePrestamosSort,
     filteredPrestamosData,
+    movimientosTurno,
+    handleRevertirMovimiento,
   } = ctx
 
   const encabezado = (col, texto) => (
@@ -250,86 +253,89 @@ export default function ActivosTab({ ctx, cn, SortIcon }) {
   )
 
   return (
-    <div className="space-y-5">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-cai-dark">
-          {prestamosTab === 'activos' ? 'Activos' : 'Vencidos'}
-        </h2>
-        <button
-          onClick={loadPrestamosData}
-          className="px-4 py-2 bg-white/70 border border-gray-100 rounded-xl text-xs font-semibold flex gap-2 items-center hover:bg-white transition-colors"
-        >
-          <RefreshCw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} /> Actualizar
-        </button>
-      </div>
+    <div className="flex flex-col-reverse gap-5 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_20rem] 2xl:gap-6 2xl:items-start">
+      <div className="space-y-5 min-w-0">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-cai-dark">
+            {prestamosTab === 'activos' ? 'Activos' : 'Vencidos'}
+          </h2>
+          <button
+            onClick={loadPrestamosData}
+            className="px-4 py-2 bg-white/70 border border-gray-100 rounded-xl text-xs font-semibold flex gap-2 items-center hover:bg-white transition-colors"
+          >
+            <RefreshCw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} /> Actualizar
+          </button>
+        </div>
 
-      {/* Barra de búsqueda */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-        <input
-          type="text"
-          placeholder="Buscar por artículo o estudiante..."
-          value={prestamosSearchQuery}
-          onChange={e => setPrestamosSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-white/70 border border-gray-100 rounded-xl text-sm font-medium text-cai-dark placeholder:text-gray-300 focus:outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-        />
-      </div>
+        {/* Barra de búsqueda */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+          <input
+            type="text"
+            placeholder="Buscar por artículo o estudiante..."
+            value={prestamosSearchQuery}
+            onChange={e => setPrestamosSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-white/70 border border-gray-100 rounded-xl text-sm font-medium text-cai-dark placeholder:text-gray-300 focus:outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+          />
+        </div>
 
-      {(() => {
-        const datos = filteredPrestamosData
-        if (datos.length === 0) {
-          return (
-            <div className="glass-panel rounded-[24px] p-10 text-center">
-              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                <Package className="w-6 h-6 text-gray-400" />
+        {(() => {
+          const datos = filteredPrestamosData
+          if (datos.length === 0) {
+            return (
+              <div className="glass-panel rounded-[24px] p-10 text-center">
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Package className="w-6 h-6 text-gray-400" />
+                </div>
+                <MensajeListaVacia
+                  isLoading={isLoading}
+                  loadError={loadError}
+                  onRetry={loadPrestamosData}
+                >
+                  {prestamosSearchQuery
+                    ? 'Sin resultados para esa búsqueda'
+                    : `No hay préstamos ${prestamosTab === 'activos' ? 'activos' : 'vencidos'}`}
+                </MensajeListaVacia>
               </div>
-              <MensajeListaVacia
-                isLoading={isLoading}
-                loadError={loadError}
-                onRetry={loadPrestamosData}
+            )
+          }
+          const grupos = agruparPorPersona(datos)
+          return (
+            <div className="space-y-4">
+              {/* Encabezado de columnas - solo desktop. Mismas columnas que cada préstamo. */}
+              <div
+                className={`hidden ${COLUMNAS} gap-4 px-5 text-[10px] font-bold uppercase text-gray-400 tracking-wider`}
               >
+                {encabezado('articulo_nombre', 'Artículo')}
+                {encabezado('responsable_nombre', 'Responsable')}
+                {encabezado('fecha_prestamo', 'Prestado')}
+                {encabezado('multa_calculada', 'Multa / Nota')}
+                <div className="flex justify-end">
+                  {encabezado('estudiante_nombre', 'Ordenar por persona')}
+                </div>
+              </div>
+              {grupos.map(prestamos => (
+                <GrupoPersona
+                  key={prestamos[0].estudiante_id}
+                  prestamos={prestamos}
+                  tab={prestamosTab}
+                  cn={cn}
+                  ctx={ctx}
+                />
+              ))}
+              {/* Conteo */}
+              <p className="px-1 text-[10px] font-bold text-gray-400 uppercase">
+                {grupos.length} {grupos.length === 1 ? 'persona' : 'personas'} · {datos.length}{' '}
+                {datos.length === 1 ? 'préstamo' : 'préstamos'}
                 {prestamosSearchQuery
-                  ? 'Sin resultados para esa búsqueda'
-                  : `No hay préstamos ${prestamosTab === 'activos' ? 'activos' : 'vencidos'}`}
-              </MensajeListaVacia>
+                  ? ` de ${prestamosTab === 'activos' ? prestamosActivos.length : prestamosVencidos.length}`
+                  : ''}
+              </p>
             </div>
           )
-        }
-        const grupos = agruparPorPersona(datos)
-        return (
-          <div className="space-y-4">
-            {/* Encabezado de columnas - solo desktop. Mismas columnas que cada préstamo. */}
-            <div
-              className={`hidden ${COLUMNAS} gap-4 px-5 text-[10px] font-bold uppercase text-gray-400 tracking-wider`}
-            >
-              {encabezado('articulo_nombre', 'Artículo')}
-              {encabezado('responsable_nombre', 'Responsable')}
-              {encabezado('fecha_prestamo', 'Prestado')}
-              {encabezado('multa_calculada', 'Multa / Nota')}
-              <div className="flex justify-end">
-                {encabezado('estudiante_nombre', 'Ordenar por persona')}
-              </div>
-            </div>
-            {grupos.map(prestamos => (
-              <GrupoPersona
-                key={prestamos[0].estudiante_id}
-                prestamos={prestamos}
-                tab={prestamosTab}
-                cn={cn}
-                ctx={ctx}
-              />
-            ))}
-            {/* Conteo */}
-            <p className="px-1 text-[10px] font-bold text-gray-400 uppercase">
-              {grupos.length} {grupos.length === 1 ? 'persona' : 'personas'} · {datos.length}{' '}
-              {datos.length === 1 ? 'préstamo' : 'préstamos'}
-              {prestamosSearchQuery
-                ? ` de ${prestamosTab === 'activos' ? prestamosActivos.length : prestamosVencidos.length}`
-                : ''}
-            </p>
-          </div>
-        )
-      })()}
+        })()}
+      </div>
+      <MovimientosTurno movimientos={movimientosTurno} onRevertir={handleRevertirMovimiento} />
     </div>
   )
 }

@@ -16,6 +16,39 @@ las propuestas de mejora.
 - **Autorregistro del estudiante** (`#/prestamos/autorregistro`): el formulario que el
   estudiante abre desde su celular escaneando el QR del mesón.
 
+## Mejoras propuestas (curso IHC)
+
+### 1. Atenciones en espera
+Si quien está en el mesón tiene que esperar (el código de verificación de su correo, fue a buscar
+la credencial…), el operador pulsa **Poner en espera**, elige el motivo con un toque y atiende a la
+siguiente persona. La atención (estudiante, carrito y registro a medio llenar) queda en la bandeja
+**En espera** con el motivo, hace cuánto espera y, si aplica, cuándo vence el código. **Retomar** la
+vuelve a poner en pantalla; si había otra atención en curso, esa pasa a la bandeja en su lugar. El
+contador en *Nuevo préstamo* recuerda que hay gente esperando aunque se esté en otra pestaña, y la
+bandeja sobrevive a un recargo de página.
+
+Código: `components/AtencionesEnEspera.jsx`, handlers en `hooks/usePrestamosActions.js`
+(sección *Atenciones en espera*), estado en `context/EscaneoContext.jsx`.
+
+### 2. Búsqueda por sinónimos
+El operador no necesita saber cómo se llama cada cosa en el inventario: buscar **bata** sugiere los
+**delantales**, **calcu** o **casio** las calculadoras, **zapatilla** el alargador. Cada sugerencia
+explica por qué aparece («bata» = delantal). Hay dos fuentes:
+
+- un diccionario general del mesón (`utils/sinonimos.js`), y
+- los **otros nombres** propios de cada artículo, que el staff edita desde *Stock* (ej. la
+  calculadora gráfica también es «la TI»).
+
+También se puede buscar por el código del artículo (`CALC-01`).
+
+### 3. Resumen antes de devolver y movimientos del turno
+Antes de registrar una devolución se muestra el estudiante (con RUT), el objeto con su **código** y
+la fecha del préstamo, con el botón **Confirmar devolución**. Cada devolución queda en
+**Movimientos del turno** (junto a *Activos* y *Vencidos*) con un botón **Revertir**, que vuelve a
+dejar activo el préstamo a nombre del mismo estudiante y registra quién lo revirtió y a qué hora.
+
+Código: `components/ResumenDevolucion.jsx`, `ConfirmarDevolucionModal.jsx`, `MovimientosTurno.jsx`.
+
 ## Qué está simulado
 
 | En el sistema real | En el prototipo |

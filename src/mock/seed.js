@@ -34,20 +34,67 @@ export function isoLocal(date) {
 }
 
 const NOMBRES = [
-  'Valentina', 'Matías', 'Catalina', 'Benjamín', 'Antonia', 'Vicente', 'Josefa', 'Martín',
-  'Isidora', 'Tomás', 'Florencia', 'Agustín', 'Fernanda', 'Joaquín', 'Constanza', 'Diego',
-  'Javiera', 'Sebastián', 'Trinidad', 'Ignacio', 'Amanda', 'Cristóbal', 'Emilia', 'Felipe',
+  'Valentina',
+  'Matías',
+  'Catalina',
+  'Benjamín',
+  'Antonia',
+  'Vicente',
+  'Josefa',
+  'Martín',
+  'Isidora',
+  'Tomás',
+  'Florencia',
+  'Agustín',
+  'Fernanda',
+  'Joaquín',
+  'Constanza',
+  'Diego',
+  'Javiera',
+  'Sebastián',
+  'Trinidad',
+  'Ignacio',
+  'Amanda',
+  'Cristóbal',
+  'Emilia',
+  'Felipe',
 ]
 const APELLIDOS = [
-  'Rojas', 'Muñoz', 'Fuentes', 'Contreras', 'Silva', 'Morales', 'Araya', 'Castillo',
-  'Espinoza', 'Vergara', 'Tapia', 'Reyes', 'Sepúlveda', 'Navarro', 'Cáceres', 'Pizarro',
-  'Herrera', 'Bravo', 'Valenzuela', 'Saavedra',
+  'Rojas',
+  'Muñoz',
+  'Fuentes',
+  'Contreras',
+  'Silva',
+  'Morales',
+  'Araya',
+  'Castillo',
+  'Espinoza',
+  'Vergara',
+  'Tapia',
+  'Reyes',
+  'Sepúlveda',
+  'Navarro',
+  'Cáceres',
+  'Pizarro',
+  'Herrera',
+  'Bravo',
+  'Valenzuela',
+  'Saavedra',
 ]
 const CARRERAS_SEED = [
-  'Ingeniería Civil', 'Ingeniería Civil', 'Ingeniería Civil', 'Ingeniería Civil',
-  'Licenciatura en Ciencias de la Computación', 'College Ciencias Naturales',
-  'College Ciencias Sociales', 'Ingeniería Comercial', 'Construcción Civil', 'Física',
-  'Matemáticas', 'Química', 'Arquitectura',
+  'Ingeniería Civil',
+  'Ingeniería Civil',
+  'Ingeniería Civil',
+  'Ingeniería Civil',
+  'Licenciatura en Ciencias de la Computación',
+  'College Ciencias Naturales',
+  'College Ciencias Sociales',
+  'Ingeniería Comercial',
+  'Construcción Civil',
+  'Física',
+  'Matemáticas',
+  'Química',
+  'Arquitectura',
 ]
 
 const ARTICULOS_SEED = [
@@ -75,6 +122,27 @@ const ARTICULOS_SEED = [
   ['Corchetera', 'Oficina', null],
   ['Tijeras', 'Oficina', null],
 ]
+
+// Prefijo del código de inventario por categoría (lo que va en la etiqueta del objeto)
+export const PREFIJOS_CODIGO = {
+  Calculadora: 'CALC',
+  Delantal: 'DEL',
+  Cargadores: 'CARG',
+  Adaptadores: 'ADAP',
+  Electricidad: 'ELEC',
+  Computación: 'COMP',
+  'Dibujo técnico': 'DIB',
+  Deportes: 'DEP',
+  Oficina: 'OFI',
+  Varios: 'VAR',
+}
+
+// "Otros nombres" propios de algunos artículos, además del diccionario general
+const ALIAS_SEED = {
+  'Calculadora gráfica': ['graficadora', 'la TI'],
+  'Cargador notebook HP': ['cargador HP'],
+  'Candado para casillero': ['candado locker'],
+}
 
 const INSUMOS_SEED = [
   ['Hojas cuadriculadas (resma)', 'Papelería', 20, 4],
@@ -126,10 +194,7 @@ export function crearSeed(ahora = new Date()) {
     usados.add(nombre)
     const num = 19000000 + entre(0, 2999999)
     const [pila, ap1] = nombre.split(' ')
-    const usuario = `${pila}.${ap1}`
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
+    const usuario = `${pila}.${ap1}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     estudiantes.push({
       id: i + 1,
       rut: `${num}-${dvRut(num)}`,
@@ -155,10 +220,16 @@ export function crearSeed(ahora = new Date()) {
     version_terminos: '2026.1',
   })
 
+  const correlativos = {}
   const articulos = ARTICULOS_SEED.map(([nombre, categoria, descripcion], i) => {
-    const stock_total = categoria === 'Calculadora' || categoria === 'Delantal' ? entre(4, 10) : entre(1, 5)
+    const stock_total =
+      categoria === 'Calculadora' || categoria === 'Delantal' ? entre(4, 10) : entre(1, 5)
+    const prefijo = PREFIJOS_CODIGO[categoria] || 'ART'
+    correlativos[prefijo] = (correlativos[prefijo] || 0) + 1
     return {
       id: i + 1,
+      codigo: `${prefijo}-${String(correlativos[prefijo]).padStart(2, '0')}`,
+      alias: ALIAS_SEED[nombre] || [],
       nombre,
       categoria,
       descripcion,
@@ -244,7 +315,12 @@ export function crearSeed(ahora = new Date()) {
   // Activos dentro del plazo (0–1 días hábiles)
   for (let i = 0; i < 9; i++) {
     const art = tomarArticulo()
-    if (art) nuevoPrestamo(pick(conConsentimiento), art, haceDiasHabiles(ahora, entre(0, 1), entre(9, 17), entre(0, 59)))
+    if (art)
+      nuevoPrestamo(
+        pick(conConsentimiento),
+        art,
+        haceDiasHabiles(ahora, entre(0, 1), entre(9, 17), entre(0, 59))
+      )
   }
   // Vencidos (3–20 días hábiles), algunos estudiantes con varios
   const morosos = conConsentimiento.slice(0, 8)
@@ -252,13 +328,19 @@ export function crearSeed(ahora = new Date()) {
     const art = tomarArticulo()
     const est = morosos[i % morosos.length]
     if (art) {
-      const p = nuevoPrestamo(est, art, haceDiasHabiles(ahora, entre(3, 20), entre(9, 17), entre(0, 59)))
+      const p = nuevoPrestamo(
+        est,
+        art,
+        haceDiasHabiles(ahora, entre(3, 20), entre(9, 17), entre(0, 59))
+      )
       if (i % 3 === 0) p.ultima_notificacion = isoLocal(haceDiasHabiles(ahora, 1, 9, 0))
     }
   }
   // Un préstamo vencido con arriendo pendiente (estudiante de otra carrera)
   const otraCarrera = conConsentimiento.find(e => e.carrera === 'Ingeniería Comercial')
-  const calcLibre = articulos.find(a => a.categoria === 'Calculadora' && (enUso[a.id] || 0) < a.stock_total)
+  const calcLibre = articulos.find(
+    a => a.categoria === 'Calculadora' && (enUso[a.id] || 0) < a.stock_total
+  )
   if (otraCarrera && calcLibre) {
     enUso[calcLibre.id] = (enUso[calcLibre.id] || 0) + 1
     const cobro = {
@@ -272,11 +354,22 @@ export function crearSeed(ahora = new Date()) {
       fecha_cobro: isoLocal(haceDiasHabiles(ahora, 4, 11, 30)),
     }
     cobrosArriendo.push(cobro)
-    nuevoPrestamo(otraCarrera, calcLibre, haceDiasHabiles(ahora, 4, 11, 30), { cobro_arriendo_id: cobro.id })
+    nuevoPrestamo(otraCarrera, calcLibre, haceDiasHabiles(ahora, 4, 11, 30), {
+      cobro_arriendo_id: cobro.id,
+    })
   }
 
   // Historial devuelto (últimos ~4 meses)
-  const tiposPago = ['SIN_MULTA', 'SIN_MULTA', 'SIN_MULTA', 'SIN_MULTA', 'TOTAL', 'TOTAL', 'PARCIAL', 'CONDONADO']
+  const tiposPago = [
+    'SIN_MULTA',
+    'SIN_MULTA',
+    'SIN_MULTA',
+    'SIN_MULTA',
+    'TOTAL',
+    'TOTAL',
+    'PARCIAL',
+    'CONDONADO',
+  ]
   for (let i = 0; i < 90; i++) {
     const est = pick(conConsentimiento)
     const art = pick(prestables)
@@ -295,14 +388,20 @@ export function crearSeed(ahora = new Date()) {
     })
     if (tipo === 'CONDONADO') p.comentario = 'Condonada: certificado médico presentado.'
     if (multa > 0 || tipo === 'SIN_MULTA') {
-      const cobrado = tipo === 'TOTAL' ? multa : tipo === 'PARCIAL' ? Math.floor(multa / 2 / 100) * 100 : 0
+      const cobrado =
+        tipo === 'TOTAL' ? multa : tipo === 'PARCIAL' ? Math.floor(multa / 2 / 100) * 100 : 0
       pagosMulta.push({
         id: pagosMulta.length + 1,
         prestamo_id: p.id,
         multa_calculada: multa,
         monto_cobrado: cobrado,
         tipo_pago: tipo,
-        comentario: tipo === 'CONDONADO' ? p.comentario : tipo === 'PARCIAL' ? 'Pagó la mitad, resto condonado' : null,
+        comentario:
+          tipo === 'CONDONADO'
+            ? p.comentario
+            : tipo === 'PARCIAL'
+              ? 'Pagó la mitad, resto condonado'
+              : null,
         registrado_por: p.responsable_email,
         fecha_cobro: p.fecha_devolucion,
       })
@@ -310,7 +409,12 @@ export function crearSeed(ahora = new Date()) {
   }
   // Algunos arriendos ya cobrados
   for (let i = 0; i < 6; i++) {
-    const est = estudiantes.find((e, idx) => idx > i * 5 && e.carrera && /Comercial|Física|Química|Arquitectura|Matemáticas/.test(e.carrera))
+    const est = estudiantes.find(
+      (e, idx) =>
+        idx > i * 5 &&
+        e.carrera &&
+        /Comercial|Física|Química|Arquitectura|Matemáticas/.test(e.carrera)
+    )
     if (!est) continue
     const fecha = haceDiasHabiles(ahora, entre(8, 60), entre(9, 17), 0)
     const cobro = {
@@ -334,6 +438,41 @@ export function crearSeed(ahora = new Date()) {
     })
   }
 
+  // Dos devoluciones de hoy, para que "Movimientos del turno" no parta vacío
+  const movimientos = []
+  for (const [minutos, operador] of [
+    [95, OPERADORES[1]],
+    [25, OPERADORES[0]],
+  ]) {
+    const est = pick(conConsentimiento)
+    const art = pick(prestables)
+    const devuelto = new Date(ahora.getTime() - minutos * 60000)
+    const p = nuevoPrestamo(est, art, haceDiasHabiles(ahora, 1, entre(9, 16), entre(0, 59)), {
+      fecha_devolucion: isoLocal(devuelto),
+      estado: 'DEVUELTO',
+    })
+    pagosMulta.push({
+      id: pagosMulta.length + 1,
+      prestamo_id: p.id,
+      multa_calculada: 0,
+      monto_cobrado: 0,
+      tipo_pago: 'SIN_MULTA',
+      comentario: null,
+      registrado_por: operador[1],
+      fecha_cobro: p.fecha_devolucion,
+    })
+    movimientos.push({
+      id: movimientos.length + 1,
+      tipo: 'DEVOLUCION',
+      prestamo_id: p.id,
+      fecha: p.fecha_devolucion,
+      registrado_por: operador[0],
+      multa: 0,
+      revertido_por: null,
+      revertido_en: null,
+    })
+  }
+
   for (const art of articulos) art.stock_disponible = art.stock_total - (enUso[art.id] || 0)
 
   const entregasInsumos = []
@@ -353,7 +492,16 @@ export function crearSeed(ahora = new Date()) {
   const carrerasConfig = [{ carrera: 'Arquitectura', exenta: true }]
 
   const correos = []
-  const eventos = ['delivered', 'delivered', 'delivered', 'opened', 'opened', 'clicked', 'bounced', 'delivery_delayed']
+  const eventos = [
+    'delivered',
+    'delivered',
+    'delivered',
+    'opened',
+    'opened',
+    'clicked',
+    'bounced',
+    'delivery_delayed',
+  ]
   const tipos = ['confirmacion', 'devolucion', 'recordatorio_vencido', 'aviso_automatico']
   for (let i = 0; i < 60; i++) {
     const est = pick(estudiantes.filter(e => e.email))
@@ -389,6 +537,7 @@ export function crearSeed(ahora = new Date()) {
     pagosMulta,
     cobrosArriendo,
     correos,
+    movimientos,
     notificacionConfig: {
       enabled: true,
       multa_minima: 1000,

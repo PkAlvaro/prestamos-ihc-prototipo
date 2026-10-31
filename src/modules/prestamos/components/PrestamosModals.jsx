@@ -15,6 +15,8 @@ import DevolucionModal from './DevolucionModal'
 import TransferirPrestamoModal from './TransferirPrestamoModal'
 import DevolverLoteModal from './DevolverLoteModal'
 import ConfirmDialog from './ConfirmDialog'
+import ConfirmarDevolucionModal from './ConfirmarDevolucionModal'
+import { PonerEnEsperaBoton } from './AtencionesEnEspera'
 
 const normalizeStr = s => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
@@ -129,6 +131,13 @@ export default function PrestamosModals({ ctx }) {
           onGuardarCarrera={ctx.handleGuardarCarreraCobro}
           onConfirm={ctx.handleConfirmarCobroArriendo}
           onClose={() => ctx.setCobroArriendoModal(null)}
+        />
+      )}
+      {ctx.resumenDevolucion && (
+        <ConfirmarDevolucionModal
+          prestamo={ctx.resumenDevolucion}
+          onConfirm={ctx.handleConfirmarDevolucionSimple}
+          onClose={() => ctx.setResumenDevolucion(null)}
         />
       )}
       {ctx.confirmacion && (
@@ -695,14 +704,17 @@ export default function PrestamosModals({ ctx }) {
                   </div>
                 </div>
 
-                <div className="p-6 shrink-0 bg-cai-surface border-t border-cai-border">
+                <div className="p-6 shrink-0 bg-cai-surface border-t border-cai-border flex gap-2">
                   <button
                     onClick={guard(handleSolicitarVerificacion)}
                     disabled={busy}
-                    className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Aceptar Términos y Enviar Código
                   </button>
+                  <div className="w-44 shrink-0">
+                    <PonerEnEsperaBoton onMinimizar={ctx.handleMinimizarAtencion} disabled={busy} />
+                  </div>
                 </div>
               </>
             )}

@@ -14,18 +14,9 @@ import {
 } from 'lucide-react'
 import InsumoRow from './InsumoRow'
 import useSubmitGuard from '../hooks/useSubmitGuard'
+import AtencionesEnEspera, { PonerEnEsperaBoton } from './AtencionesEnEspera'
 
 const CameraScanner = lazy(() => import('./CameraScanner'))
-
-function MinutosRestantes({ expiraEn }) {
-  const [, forceTick] = useState(0)
-  React.useEffect(() => {
-    const interval = setInterval(() => forceTick(t => t + 1), 30000)
-    return () => clearInterval(interval)
-  }, [])
-  const minutos = Math.max(0, Math.round((expiraEn - Date.now()) / 60000))
-  return minutos > 0 ? `${minutos} min` : 'por expirar'
-}
 
 export default function EscaneoTab({ ctx, cn }) {
   const [showCamera, setShowCamera] = useState(false)
@@ -69,9 +60,10 @@ export default function EscaneoTab({ ctx, cn }) {
     handleAgregarCombo,
     insumosCategories,
     filteredInsumos,
-    pendientesVerificacion,
-    handleRetomarPendiente,
-    handleDescartarPendiente,
+    atencionesEnEspera,
+    handleMinimizarAtencion,
+    handleRetomarAtencion,
+    handleDescartarAtencion,
   } = ctx
 
   const totalUnidades = articulosEscaneados.reduce((sum, a) => sum + a.cantidad, 0)
@@ -144,47 +136,11 @@ export default function EscaneoTab({ ctx, cn }) {
               </button>
             </div>
           </div>
-          {pendientesVerificacion.length > 0 && (
-            <div className="mb-5 p-3 rounded-xl border border-amber-200 bg-amber-50">
-              <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-2">
-                Esperando código ({pendientesVerificacion.length})
-              </p>
-              <div className="space-y-1.5">
-                {pendientesVerificacion.map(p => (
-                  <div
-                    key={p.verificacionId}
-                    className="flex items-center justify-between gap-2 bg-white rounded-lg px-3 py-2 border border-amber-100"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-cai-dark truncate">
-                        {p.nuevoEstudiante.nombre}
-                      </p>
-                      <p className="text-[10px] text-gray-400">
-                        {p.emailEnmascarado} · <MinutosRestantes expiraEn={p.expiraEn} />
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleRetomarPendiente(p.verificacionId)}
-                        className="px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold transition-colors"
-                      >
-                        Retomar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDescartarPendiente(p.verificacionId)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-                        title="Descartar"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <AtencionesEnEspera
+            atenciones={atencionesEnEspera}
+            onRetomar={handleRetomarAtencion}
+            onDescartar={handleDescartarAtencion}
+          />
           <div className="mb-6">
             <div className="flex items-center justify-between gap-3 mb-2">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
@@ -260,12 +216,28 @@ export default function EscaneoTab({ ctx, cn }) {
                       <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
                         <Package className="w-4 h-4 text-emerald-600" />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold truncate text-cai-black">{art.nombre}</p>
                         <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">
+                          {art.codigo && <span className="text-gray-400">{art.codigo} · </span>}
                           {art.stock_disponible} disponible{art.stock_disponible !== 1 ? 's' : ''}
                         </p>
                       </div>
+                      {art._coincidencia && (
+                        <span
+                          className="shrink-0 max-w-[45%] truncate px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-semibold"
+                          title={
+                            art._coincidencia.tipo === 'alias'
+                              ? 'Coincide con otro nombre registrado para este artículo'
+                              : 'Coincide por sinónimo'
+                          }
+                        >
+                          «{art._coincidencia.buscado}» ={' '}
+                          {art._coincidencia.tipo === 'alias'
+                            ? 'otro nombre'
+                            : art._coincidencia.es}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -432,14 +404,27 @@ export default function EscaneoTab({ ctx, cn }) {
               )}
             </div>
           </div>
-          {estudianteEscaneado && articulosEscaneados.length > 0 && (
-            <button
-              onClick={guard(handleRealizarPrestamoAndNavigate)}
-              disabled={busy}
-              className="w-full py-4 mb-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-colors sticky top-2 z-10 shadow-md disabled:opacity-50"
-            >
-              {`Realizar Préstamo (${totalUnidades})`}
-            </button>
+          {(estudianteEscaneado || articulosEscaneados.length > 0) && (
+            <div className="flex gap-2 mb-4 sticky top-2 z-10">
+              {estudianteEscaneado && articulosEscaneados.length > 0 && (
+                <button
+                  onClick={guard(handleRealizarPrestamoAndNavigate)}
+                  disabled={busy}
+                  className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-colors shadow-md disabled:opacity-50"
+                >
+                  {`Realizar Préstamo (${totalUnidades})`}
+                </button>
+              )}
+              <div
+                className={
+                  estudianteEscaneado && articulosEscaneados.length > 0
+                    ? 'w-44 sm:w-52 shrink-0'
+                    : 'flex-1'
+                }
+              >
+                <PonerEnEsperaBoton onMinimizar={handleMinimizarAtencion} disabled={busy} />
+              </div>
+            </div>
           )}
           {estudianteEscaneado && estudianteFines.length > 0 && (
             <div className="mb-4 p-4 rounded-xl border-2 border-red-400 bg-red-50 flex items-start gap-3">

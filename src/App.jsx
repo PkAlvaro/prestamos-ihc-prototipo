@@ -8,7 +8,7 @@ import { PrestamosProvider, PrestamosPage, PrestamosAutorregistroPage } from './
 
 function AvisoPrototipo() {
   return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-cai-black text-white/80 text-[11px] font-medium border border-white/10 pointer-events-none">
+    <div className="fixed bottom-[72px] lg:bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-cai-black text-white/80 text-[11px] font-medium border border-white/10 pointer-events-none">
       <FlaskConical className="w-3.5 h-3.5 text-cai-yellow" />
       Prototipo académico · datos ficticios
     </div>

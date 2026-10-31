@@ -8,11 +8,17 @@ beforeAll(() => {
   globalThis.setTimeout = (fn => fn()).bind(null)
 })
 
-const conConsentimiento = () => db.estudiantes.find(e => e.consentimiento_aceptado && e.carrera === 'Ingeniería Civil')
+const conConsentimiento = () =>
+  db.estudiantes.find(e => e.consentimiento_aceptado && e.carrera === 'Ingeniería Civil')
 
 describe('API simulada de préstamos', () => {
   it('lee todas las colecciones con la forma esperada', async () => {
-    const est = await prestamosApi.listarEstudiantes({ limit: 10, offset: 0, sort_by: 'nombre', sort_dir: 'asc' })
+    const est = await prestamosApi.listarEstudiantes({
+      limit: 10,
+      offset: 0,
+      sort_by: 'nombre',
+      sort_dir: 'asc',
+    })
     expect(est.items).toHaveLength(10)
     expect(est.total).toBeGreaterThan(10)
     expect((await prestamosApi.listarArticulos()).length).toBeGreaterThan(10)
@@ -36,7 +42,9 @@ describe('API simulada de préstamos', () => {
 
   it('prestar baja el stock y devolver lo repone', async () => {
     const est = conConsentimiento()
-    const art = db.articulos.find(a => a.stock_disponible > 0 && !['Calculadora', 'Delantal'].includes(a.categoria))
+    const art = db.articulos.find(
+      a => a.stock_disponible > 0 && !['Calculadora', 'Delantal'].includes(a.categoria)
+    )
     const antes = art.stock_disponible
     const { prestamos } = await prestamosApi.registrarPrestamoLote({
       estudiante_rut: est.rut,
@@ -49,7 +57,9 @@ describe('API simulada de préstamos', () => {
   })
 
   it('cobra arriendo a carreras no exentas y lo exige al registrar', async () => {
-    const est = db.estudiantes.find(e => e.consentimiento_aceptado && e.carrera === 'Ingeniería Comercial')
+    const est = db.estudiantes.find(
+      e => e.consentimiento_aceptado && e.carrera === 'Ingeniería Comercial'
+    )
     const calc = db.articulos.find(a => a.categoria === 'Calculadora' && a.stock_disponible > 0)
     const evaluacion = await prestamosApi.evaluarCobroArriendo({
       estudiante_rut: est.rut,
@@ -57,7 +67,10 @@ describe('API simulada de préstamos', () => {
     })
     expect(evaluacion).toMatchObject({ aplica: true, monto: 500 })
     await expect(
-      prestamosApi.registrarPrestamoLote({ estudiante_rut: est.rut, articulos: [{ articulo_id: calc.id, cantidad: 1 }] })
+      prestamosApi.registrarPrestamoLote({
+        estudiante_rut: est.rut,
+        articulos: [{ articulo_id: calc.id, cantidad: 1 }],
+      })
     ).rejects.toMatchObject({ response: { status: 400 } })
   })
 
@@ -98,7 +111,9 @@ describe('API simulada de préstamos', () => {
       carrera: 'Física',
       turnstile_token: 'demo-token',
     })
-    await expect(autorregistroApi.confirmarVerificacion({ verificacion_id, codigo: '000000' })).rejects.toBeTruthy()
+    await expect(
+      autorregistroApi.confirmarVerificacion({ verificacion_id, codigo: '000000' })
+    ).rejects.toBeTruthy()
     const est = await autorregistroApi.confirmarVerificacion({ verificacion_id, codigo: '123456' })
     expect(est.consentimiento_aceptado).toBe(true)
     expect((await prestamosApi.buscarEstudiante('12345678-5')).existe).toBe(true)
@@ -110,5 +125,45 @@ describe('API simulada de préstamos', () => {
     await prestamosApi.entregarInsumo({ insumo_id: ins.id, cantidad: 2 })
     await prestamosApi.reponerInsumo(ins.id, 5)
     expect(db.insumos.find(i => i.id === ins.id).stock_actual).toBe(antes + 3)
+  })
+
+  it('la búsqueda encuentra delantales al escribir "bata" y por otro nombre propio', async () => {
+    const porSinonimo = await prestamosApi.buscarArticulosSemantico('bata', false)
+    expect(porSinonimo.length).toBeGreaterThan(0)
+    expect(porSinonimo.every(a => a.categoria === 'Delantal')).toBe(true)
+    const porAlias = await prestamosApi.buscarArticulosSemantico('graficadora', false)
+    expect(porAlias[0].nombre).toBe('Calculadora gráfica')
+  })
+
+  it('cada artículo tiene código y viaja en el detalle del préstamo', async () => {
+    expect(db.articulos.every(a => /^[A-Z]+-\d{2}$/.test(a.codigo))).toBe(true)
+    const [activo] = await prestamosApi.listarPrestamosActivos()
+    expect(activo.articulo_codigo).toMatch(/^[A-Z]+-\d{2}$/)
+  })
+
+  it('cada devolución queda en movimientos del turno y al revertirla registra quién lo hizo', async () => {
+    const est = conConsentimiento()
+    const art = db.articulos.find(
+      a => a.stock_disponible > 0 && !['Calculadora', 'Delantal'].includes(a.categoria)
+    )
+    const { prestamos } = await prestamosApi.registrarPrestamoLote({
+      estudiante_rut: est.rut,
+      articulos: [{ articulo_id: art.id, cantidad: 1 }],
+    })
+    const id = prestamos[0].id
+    await prestamosApi.devolverPrestamo(id)
+    let movs = await prestamosApi.listarMovimientosTurno()
+    expect(movs[0]).toMatchObject({ prestamo_id: id, tipo: 'DEVOLUCION', revertido_por: null })
+    expect(movs[0]).toHaveProperty('articulo_codigo', art.codigo)
+
+    const r = await prestamosApi.revertirDevolucion(id)
+    expect(r.estado).toBe('ACTIVO')
+    movs = await prestamosApi.listarMovimientosTurno()
+    const mov = movs.find(m => m.prestamo_id === id)
+    expect(mov.revertido_por).toBe('Usuario Demo')
+    expect(mov.estado_actual).toBe('ACTIVO')
+    const reabierto = db.prestamos.find(p => p.id === id)
+    expect(reabierto.estudiante_id).toBe(est.id)
+    expect(reabierto.comentario).toMatch(/revertida por Usuario Demo/)
   })
 })

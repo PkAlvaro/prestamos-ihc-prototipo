@@ -1,4 +1,14 @@
-import React, { createContext, useContext, useRef, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
+
+const ATENCIONES_KEY = 'prestamos-demo-atenciones-en-espera'
+
+function leerAtenciones() {
+  try {
+    return JSON.parse(localStorage.getItem(ATENCIONES_KEY)) || []
+  } catch {
+    return []
+  }
+}
 
 export const EscaneoContext = createContext()
 
@@ -25,10 +35,18 @@ export const EscaneoProvider = ({ children }) => {
   // Verificación de correo pendiente (paso 2 del registro de consentimiento)
   const [verificacion, setVerificacion] = useState(null) // { verificacionId, emailEnmascarado, expiraEn } | null
   const [codigoVerificacion, setCodigoVerificacion] = useState('')
-  // Verificaciones que el operario dejó "en espera" para atender a otra persona
-  // mientras llega el código al correo del primero. Cada una guarda su propio
-  // `nuevoEstudiante` para poder retomarla tal cual quedó.
-  const [pendientesVerificacion, setPendientesVerificacion] = useState([])
+  // Atenciones que el operario minimizó para atender a otra persona (esperando el
+  // código del correo, la credencial, etc.). Cada una guarda estudiante, carrito y
+  // registro a medio llenar para retomarla tal cual quedó. Se guardan en el
+  // navegador: un recargo de página no hace perder a nadie de la fila.
+  const [atencionesEnEspera, setAtencionesEnEspera] = useState(leerAtenciones)
+  useEffect(() => {
+    try {
+      localStorage.setItem(ATENCIONES_KEY, JSON.stringify(atencionesEnEspera))
+    } catch {
+      // Sin persistencia: la bandeja sigue funcionando en memoria
+    }
+  }, [atencionesEnEspera])
 
   return (
     <EscaneoContext.Provider
@@ -62,8 +80,8 @@ export const EscaneoProvider = ({ children }) => {
         setVerificacion,
         codigoVerificacion,
         setCodigoVerificacion,
-        pendientesVerificacion,
-        setPendientesVerificacion,
+        atencionesEnEspera,
+        setAtencionesEnEspera,
       }}
     >
       {children}
